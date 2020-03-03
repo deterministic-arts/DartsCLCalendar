@@ -294,6 +294,12 @@
           (local-timestamp (local-timestamp-date defaults))
           (t (build))))))
 
+(defun new-local-date (year month day)
+  (let* ((year (range-checked +min-local-year+ year +max-local-year+ year))
+         (month (range-checked 1 month 12 month))
+         (day (range-checked 1 day (days-in-month year month) day)))
+    (make-local-date-1 year month day)))
+
 (defun make-local-time (&key hour minute second millisecond microsecond nanosecond nanos (defaults +midnight+))
   (let ((hour (if hour (range-checked 0 hour 23 hour) (local-hour defaults)))
         (minute (if minute (range-checked 0 minute 59 minute) (local-minute defaults)))
@@ -304,6 +310,16 @@
                  (t (local-nanos defaults)))))
     (make-local-time-1 hour minute second nanos)))
 
+(defun new-local-time (hour minute second &key nanos millisecond microsecond nanosecond)
+  (let ((hour (range-checked 0 hour 23 hour))
+        (minute (range-checked 0 minute 59 minute))
+        (second (range-checked 0 second 59 second))
+        (nanos (cond
+                 (nanos (range-checked 0 nanos 999999999 nanos))
+                 ((or millisecond microsecond nanosecond) (range-checked 0 (+ (* (or millisecond 0) 1000000) (* (or microsecond 0) 1000) (or nanosecond 0)) 999999999 nanos))
+                 (t 0))))
+    (make-local-time-1 hour minute second nanos)))  
+
 (defun make-local-timestamp (&key year month day hour minute second millisecond microsecond
                                nanosecond nanos (defaults +epoch-timestamp+))
   (make-local-timestamp-1 (make-local-date :year year :month month :day day :defaults defaults)
@@ -311,3 +327,14 @@
                                            :millisecond millisecond :microsecond microsecond
                                            :nanosecond nanosecond :nanos nanos
                                            :defaults defaults)))
+
+(defun compose-local-timestamp (date time)
+  (make-local-timestamp-1 (local-date date) (local-time time)))
+
+(defun new-local-timestamp (year month day hour minute second
+                            &key nanos millisecond microsecond nanosecond)
+  (make-local-timestamp-1 (new-local-date year month day)
+                          (new-local-time hour minute second
+                                          :millisecond millisecond :microsecond microsecond
+                                          :nanosecond nanosecond :nanos nanos)))
+  

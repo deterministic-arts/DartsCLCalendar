@@ -23,7 +23,7 @@
 
 (defpackage #:darts.lib.calendar
   (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage)
-  (:export #:local-date #:local-date-day #:local-date-month #:local-date-day
+  (:export #:local-date #:local-date-year #:local-date-month #:local-date-day
            #:local-date-weekday #:local-date-p #:local-date< #:local-date<=
            #:local-date>= #:local-date> #:local-date= #:local-date/= #:local-date-hash
            #:local-date-equal #:local-time #:local-time-hour #:local-time-minute
@@ -54,7 +54,8 @@
            #:localized-meridian #:localized-timestamp-format #:localized-beginning-of-week
            #:print-timestamp #:format-timestamp #:compile-timestamp-printer #:compile-timestamp-printer-pattern
            #:parse-timestamp-format-string #:same-zone-p #:compute-zone-offset #:instant-seconds
-           #:instant-nanos
+           #:instant-nanos #:days-in-month #:leap-year-p #:compose-local-timestamp
+           #:new-local-date #:new-local-time #:new-local-timestamp
 
            ;; This one does not belong here!
            #:*default-locale*
