@@ -50,13 +50,29 @@
 
 
 
+(defmethod make-load-form ((object local-date) &optional environment)
+  (declare (ignore environment))
+  `(make-local-date-1 ,(local-date-year object) ,(local-date-month object)
+                      ,(local-date-day object) ,(local-date-%dow object)))
+
+(defmethod make-load-form ((object local-time) &optional environment)
+  (declare (ignore environment))
+  `(make-local-time-1 ,(local-time-hour object) ,(local-time-minute object)
+                      ,(local-time-second object) ,(local-time-nanos object)))
+
+(defmethod make-load-form ((object local-timestamp) &optional environment)
+  (declare (ignore environment))
+  `(make-local-timestamp-1 ,(local-timestamp-date object)
+                           ,(local-timestamp-time object)))
+
+
 (defun local-date-weekday (object)
   (let ((value (local-date-%dow object)))
-    (1- (if (not (eql value +lazyday+)) value
-            (setf (local-date-%dow object)
-                  (compute-weekday (local-date-year object)
-                                   (local-date-month object)
-                                   (local-date-day object)))))))
+    (if (not (eql value +lazyday+)) value
+        (setf (local-date-%dow object)
+              (compute-weekday (local-date-year object)
+                               (local-date-month object)
+                               (local-date-day object))))))
 
 (defun local-time-millisecond (object)
   (nth-value 0 (floor (local-time-nanos object) 1000000)))
@@ -81,6 +97,11 @@
 (defmethod local-weekday ((object local-date))
   (local-date-weekday object))
 
+(defmethod local-hour ((object local-date)) 0)
+(defmethod local-minute ((object local-date)) 0)
+(defmethod local-second ((object local-date)) 0)
+(defmethod local-nanos ((object local-date)) 0)
+
 (defmethod local-hour ((object local-time))
   (local-time-hour object))
 
@@ -92,6 +113,11 @@
 
 (defmethod local-nanos ((object local-time))
   (local-time-nanos object))
+
+(defmethod local-year ((object local-time)) 2000)
+(defmethod local-month ((object local-time)) 3)
+(defmethod local-day ((object local-time)) 1)
+(defmethod local-weekday ((object local-time)) +wednesday+)
 
 (defmethod local-year ((object local-timestamp))
   (local-date-year (local-timestamp-date object)))
@@ -184,6 +210,12 @@
 (defmethod local-date ((object local-timestamp) &key)
   (local-timestamp-date object))
 
+(defmethod local-date ((object local-time) &key)
+  +epoch-date+)
+
+(defmethod local-time ((object local-date) &key)
+  +midnight+)
+
 (defmethod local-time ((object local-time) &key)
   object)
 
@@ -249,10 +281,18 @@
 
 
 (defun make-local-date (&key year month day (defaults +epoch-date+))
-  (let* ((year (if year (range-checked +min-local-year+ year +max-local-year+ year) (local-year defaults)))
-         (month (if month (range-checked 1 month 12 month) (local-month defaults)))
-         (day (range-checked 1 (or day (local-day defaults)) (days-in-month year month) day)))
-    (make-local-date-1 year month day)))
+  (labels
+      ((build ()
+         (let* ((year (if year (range-checked +min-local-year+ year +max-local-year+ year) (local-year defaults)))
+                (month (if month (range-checked 1 month 12 month) (local-month defaults)))
+                (day (range-checked 1 (or day (local-day defaults)) (days-in-month year month) day)))
+           (make-local-date-1 year month day))))
+    (if (or year month day)
+        (build)
+        (typecase defaults
+          (local-date defaults)
+          (local-timestamp (local-timestamp-date defaults))
+          (t (build))))))
 
 (defun make-local-time (&key hour minute second millisecond microsecond nanosecond nanos (defaults +midnight+))
   (let ((hour (if hour (range-checked 0 hour 23 hour) (local-hour defaults)))

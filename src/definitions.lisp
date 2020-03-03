@@ -23,14 +23,15 @@
 
 (in-package #:darts.lib.calendar)
 
-(defconstant +lazyday+ 0)
-(defconstant +sunday+ 1)
-(defconstant +monday+ 2)
-(defconstant +tuesday+ 3)
-(defconstant +wednesday+ 4)
-(defconstant +thursday+ 5)
-(defconstant +friday+ 6)
-(defconstant +saturday+ 7)
+(defconstant +sunday+ 0)
+(defconstant +monday+ 1)
+(defconstant +tuesday+ 2)
+(defconstant +wednesday+ 3)
+(defconstant +thursday+ 4)
+(defconstant +friday+ 5)
+(defconstant +saturday+ 6)
+
+(defconstant +lazyday+ 7)
 
 (defconstant +seconds-per-minute+ 60)
 (defconstant +seconds-per-hour+ (* 60 60))

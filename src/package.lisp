@@ -34,7 +34,7 @@
            #:local-timestamp-time #:local-timestamp-p #:local-timestamp< #:local-timestamp<=
            #:local-timestamp>= #:local-timestamp> #:local-timestamp= #:local-timestamp/=
            #:local-timestamp-hash #:local-timestamp-equal #:local-year #:local-month
-           #:local-date #:local-weekday #:local-hour #:local-minute #:local-second
+           #:local-day #:local-weekday #:local-hour #:local-minute #:local-second
            #:local-millisecond #:local-microsecond #:local-nanosecond #:local-nanos
            #:instant #:instantp #:instant< #:instant<= #:instant>= #:instant> #:instant/=
            #:instant= #:instant-equal #:instant-hash #:+sunday+ #:+monday+ #:+tuesday+
@@ -53,7 +53,8 @@
            #:localized-month-abbreviation #:localized-weekday-name #:localized-weekday-abbreviation
            #:localized-meridian #:localized-timestamp-format #:localized-beginning-of-week
            #:print-timestamp #:format-timestamp #:compile-timestamp-printer #:compile-timestamp-printer-pattern
-           #:parse-timestamp-format-string
+           #:parse-timestamp-format-string #:same-zone-p #:compute-zone-offset #:instant-seconds
+           #:instant-nanos
 
            ;; This one does not belong here!
            #:*default-locale*
