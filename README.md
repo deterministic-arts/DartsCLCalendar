@@ -12,9 +12,7 @@ particular order):
  - H. Hinnant's [C++ date/time proposal][hinnant]
 
 **This library is work in progress** It is currently somewhat usable as a `local-time` 
-replacement for limited use cases. Right now, it is still missing the time zone calculation 
-stuff, without which it should be pretty unusable to anyone (including me). I welcome input 
-and feedback, though.
+replacement for limited use cases.
 
 ## Date/Time Representations
 
