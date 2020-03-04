@@ -86,7 +86,7 @@
 
 (defun 53-week-year-p (year)
   ;; "any year ending on Thursday (D, ED) and any leap year ending on Friday (DC)"
-  (let* ((last (make-local-date :year year :month 12 :day 31))
+  (let* ((last (make-local-date year 12 31))
          (day (local-weekday last)))
     (or (eql day 4)          ; Thursday
         (and (leap-year-p year)

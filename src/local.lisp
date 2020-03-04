@@ -204,31 +204,40 @@
 (defvar +midnight+ (make-local-time-1 0 0 0 0))
 (defvar +epoch-timestamp+ (make-local-timestamp-1 +epoch-date+ +midnight+))
 
-(defmethod local-date ((object local-date) &key)
+(defmethod local-date ((object local-date) &key zone)
+  (declare (ignore zone))
   object)
 
-(defmethod local-date ((object local-timestamp) &key)
+(defmethod local-date ((object local-timestamp) &key zone)
+  (declare (ignore zone))
   (local-timestamp-date object))
 
-(defmethod local-date ((object local-time) &key)
+(defmethod local-date ((object local-time) &key zone)
+  (declare (ignore zone))
   +epoch-date+)
 
-(defmethod local-time ((object local-date) &key)
+(defmethod local-time ((object local-date) &key zone)
+  (declare (ignore zone))
   +midnight+)
 
-(defmethod local-time ((object local-time) &key)
+(defmethod local-time ((object local-time) &key zone)
+  (declare (ignore zone))
   object)
 
-(defmethod local-time ((object local-timestamp) &key)
+(defmethod local-time ((object local-timestamp) &key zone)
+  (declare (ignore zone))
   (local-timestamp-time object))
 
-(defmethod local-timestamp ((object local-timestamp) &key)
+(defmethod local-timestamp ((object local-timestamp) &key zone)
+  (declare (ignore zone))
   object)
 
-(defmethod local-timestamp ((object local-date) &key)
+(defmethod local-timestamp ((object local-date) &key zone)
+  (declare (ignore zone))
   (make-local-timestamp-1 object +midnight+))
 
-(defmethod local-timestamp ((object local-time) &key)
+(defmethod local-timestamp ((object local-time) &key zone)
+  (declare (ignore zone))
   (make-local-timestamp-1 +epoch-date+ object))
 
 
@@ -280,37 +289,13 @@
 
 
 
-(defun make-local-date (&key year month day (defaults +epoch-date+))
-  (labels
-      ((build ()
-         (let* ((year (if year (range-checked +min-local-year+ year +max-local-year+ year) (local-year defaults)))
-                (month (if month (range-checked 1 month 12 month) (local-month defaults)))
-                (day (range-checked 1 (or day (local-day defaults)) (days-in-month year month) day)))
-           (make-local-date-1 year month day))))
-    (if (or year month day)
-        (build)
-        (typecase defaults
-          (local-date defaults)
-          (local-timestamp (local-timestamp-date defaults))
-          (t (build))))))
-
-(defun new-local-date (year month day)
+(defun make-local-date (year month day)
   (let* ((year (range-checked +min-local-year+ year +max-local-year+ year))
          (month (range-checked 1 month 12 month))
          (day (range-checked 1 day (days-in-month year month) day)))
     (make-local-date-1 year month day)))
 
-(defun make-local-time (&key hour minute second millisecond microsecond nanosecond nanos (defaults +midnight+))
-  (let ((hour (if hour (range-checked 0 hour 23 hour) (local-hour defaults)))
-        (minute (if minute (range-checked 0 minute 59 minute) (local-minute defaults)))
-        (second (if second (range-checked 0 second 59 second) (local-second defaults)))
-        (nanos (cond
-                 (nanos (range-checked 0 nanos 999999999 nanos))
-                 ((or millisecond microsecond nanosecond) (range-checked 0 (+ (* (or millisecond 0) 1000000) (* (or microsecond 0) 1000) (or nanosecond 0)) 999999999 nanos))
-                 (t (local-nanos defaults)))))
-    (make-local-time-1 hour minute second nanos)))
-
-(defun new-local-time (hour minute second &key nanos millisecond microsecond nanosecond)
+(defun make-local-time (hour minute second &key millisecond microsecond nanosecond nanos)
   (let ((hour (range-checked 0 hour 23 hour))
         (minute (range-checked 0 minute 59 minute))
         (second (range-checked 0 second 59 second))
@@ -318,23 +303,14 @@
                  (nanos (range-checked 0 nanos 999999999 nanos))
                  ((or millisecond microsecond nanosecond) (range-checked 0 (+ (* (or millisecond 0) 1000000) (* (or microsecond 0) 1000) (or nanosecond 0)) 999999999 nanos))
                  (t 0))))
-    (make-local-time-1 hour minute second nanos)))  
+    (make-local-time-1 hour minute second nanos)))
 
-(defun make-local-timestamp (&key year month day hour minute second millisecond microsecond
-                               nanosecond nanos (defaults +epoch-timestamp+))
-  (make-local-timestamp-1 (make-local-date :year year :month month :day day :defaults defaults)
-                          (make-local-time :hour hour :minute minute :second second
+(defun make-local-timestamp (year month day hour minute second
+                             &key millisecond microsecond nanosecond nanos)
+  (make-local-timestamp-1 (make-local-date year month day)
+                          (make-local-time hour minute second
                                            :millisecond millisecond :microsecond microsecond
-                                           :nanosecond nanosecond :nanos nanos
-                                           :defaults defaults)))
+                                           :nanosecond nanosecond :nanos nanos)))
 
 (defun compose-local-timestamp (date time)
   (make-local-timestamp-1 (local-date date) (local-time time)))
-
-(defun new-local-timestamp (year month day hour minute second
-                            &key nanos millisecond microsecond nanosecond)
-  (make-local-timestamp-1 (new-local-date year month day)
-                          (new-local-time hour minute second
-                                          :millisecond millisecond :microsecond microsecond
-                                          :nanosecond nanosecond :nanos nanos)))
-  

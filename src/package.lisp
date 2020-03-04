@@ -55,7 +55,6 @@
            #:print-timestamp #:format-timestamp #:compile-timestamp-printer #:compile-timestamp-printer-pattern
            #:parse-timestamp-format-string #:same-zone-p #:compute-zone-offset #:instant-seconds
            #:instant-nanos #:days-in-month #:leap-year-p #:compose-local-timestamp
-           #:new-local-date #:new-local-time #:new-local-timestamp
 
            ;; This one does not belong here!
            #:*default-locale*
