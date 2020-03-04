@@ -292,7 +292,10 @@
 (defun make-local-date (year month day)
   (let* ((year (range-checked +min-local-year+ year +max-local-year+ year))
          (month (range-checked 1 month 12 month))
-         (day (range-checked 1 day (days-in-month year month) day)))
+         (day (if (and (integerp day) (<= 1 day 28)) day
+                  (let ((last (days-in-month year month)))
+                    (if (eql day :last) last
+                        (range-checked 1 day last day))))))
     (make-local-date-1 year month day)))
 
 (defun make-local-time (hour minute second &key millisecond microsecond nanosecond nanos)

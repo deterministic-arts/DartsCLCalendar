@@ -50,7 +50,15 @@
           (is (eql 0 (local-nanos date)))
           (is (eql 0 (local-millisecond date)))
           (is (eql 0 (local-microsecond date)))
-          (is (eql 0 (local-nanosecond date))))))
+         (is (eql 0 (local-nanosecond date))))))
+
+(deftest local-date-last-day-of-month-constructor ()
+  (is (local-date= (make-local-date 2020 2 29) (make-local-date 2020 2 :last)))
+  (is (local-date= (make-local-date 2021 2 28) (make-local-date 2021 2 :last)))
+  (loop
+     for month in '( 1  3  4  5  6  7  8  9 10 11 12)
+     for count in '(31 31 30 31 30 31 31 30 31 30 31)
+     do (is (local-date= (make-local-date 2020 month count) (make-local-date 2020 month :last)))))
 
 (deftest local-date-ordering ()
   (let ((listlessp (make-list-lessp))
