@@ -219,6 +219,23 @@
 (define-print-operator day-of-year (&key (width 1))
   (print-lambda (format stream "~v,'0D" width (local-day-of-year ts))))
 
+(define-print-operator zone-offset (&key (precision :hours) (colons nil) (zero nil))
+  (print-lambda
+   (let ((offset (compute-zone-offset ts tzinfo)))
+     (if (and (zerop offset) zero)
+         (princ zero stream)
+         (multiple-value-bind (minutes* seconds) (floor offset 60)
+           (multiple-value-bind (hours minutes) (floor minutes* 60)
+             (format stream "~A~2,'0D~:[~;~A~2,'0D~:[~;~A~2,'0D~]~]"
+                     (if (minusp hours) #\- #\+)
+                     (abs hours)
+                     (or (plusp minutes) (plusp seconds) (member precision '(:minutes :seconds)))
+                     (if colons ":" "")
+                     minutes
+                     (or (plusp seconds) (eq precision :seconds))
+                     (if colons ":" "")
+                     seconds)))))))
+
 nil)                                    ; macrolet
 
 
@@ -295,6 +312,18 @@ nil)                                    ; macrolet
                         ((3) (push `(subsecond :precision :ms) list))
                         ((6) (push `(subsecond :precision :us) list))
                         ((9) (push `(subsecond :precision :ns) list))))
+               ((#\x) (ecase count
+                        ((1) (push `(zone-offset :precision :hours :colons nil) list))
+                        ((2) (push `(zone-offset :precision :minutes :colons nil) list))
+                        ((3) (push `(zone-offset :precision :minutes :colons t) list))
+                        ((4) (push `(zone-offset :precision :seconds :colons nil) list))
+                        ((5) (push `(zone-offset :precision :seconds :colons t) list))))
+               ((#\X) (ecase count
+                        ((1) (push `(zone-offset :precision :hours :colons nil :zero #\Z) list))
+                        ((2) (push `(zone-offset :precision :minutes :colons nil :zero #\Z) list))
+                        ((3) (push `(zone-offset :precision :minutes :colons t :zero #\Z) list))
+                        ((4) (push `(zone-offset :precision :seconds :colons nil :zero #\Z) list))
+                        ((5) (push `(zone-offset :precision :seconds :colons t :zero #\Z) list))))
                (otherwise (error "unknown command character ~C" char)))
              (parse-command pos)))
          (parse-command (pos)

@@ -34,24 +34,8 @@
 
 (defgeneric compute-zone-offset (temporal zone)
   (:documentation "Compute the offset in seconds to use for the given
-    temporal object. The function returns three values:
-
-     - the offset from UTC in seconds. The value is an integer, which
-       measures the offset from UTC. Positive values indicate, that the
-       local time is ahead of UTC (east), and negative values indicate,
-       that local time is behind UTC (west).
-
-     - an indicator of the daylight savings time. The value may be one
-       of `:dst`, if daylight savings time is in effect, `:std`, if 
-       daylight savings time is *not* in effect, and `nil`, if this
-       information is not known or does not apply.
-
-     - a string, which represents the local time zone name abbreviation
-       in effect, such as CET vs CEST, etc. or `nil`, if there is no
-       known time zone abbreviation.
-
-    The value passed as `temporal` may either be an instant, or a 
-    local date/time representation."))
+    temporal object. The value passed as `temporal` may either be an 
+    instant, or a local date/time representation."))
 
 (defgeneric zone-identifier (object)
   (:documentation "Answers a value, which uniquely (and unambiguously)
