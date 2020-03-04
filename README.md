@@ -12,7 +12,8 @@ particular order):
  - H. Hinnant's [C++ date/time proposal][hinnant]
 
 **This library is work in progress** It is currently somewhat usable as a `local-time` 
-replacement for limited use cases.
+replacement for limited use cases. Proper time zone support still requires `local-time`
+since we currently abuse local time's support for compiled time zone files.
 
 ## Date/Time Representations
 
@@ -205,10 +206,6 @@ value is generally defaulted to the corresponding value from the full "epoch"
  - Function `local-microsecond` _object_ &rarr; _value_
  - Function `local-nanosecond` _object_ &rarr; _value_
  - Function `local-nanos` _object_ &rarr; _value_
- - Function `local-zone` _object_ &rarr; _value_
- - Function `local-period` _object_ &rarr; _value_
- - Function `local-standard-time-p` _object_ &rarr; _value_
- - Function `local-daylight-savings-time-p` _object_ &rarr; _value_
  - Function `local-iso-weekday` _object_ &rarr; _value_
  - Function `local-day-of-year` _object_ &rarr; _value_
  - Function `local-iso-week&year` _object_ &rarr; _week_ _year_

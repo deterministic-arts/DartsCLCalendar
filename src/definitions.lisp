@@ -77,7 +77,7 @@
       (declare (ignore cycle))
       (let* ((day-of-year (day-of-mar1st-year month day))
              (day-of-cycle (- (+ (* 365 year-of-cycle) (truncate year-of-cycle 4) day-of-year) (truncate year-of-cycle 100))))
-        (1+ (nth-value 1 (floor (+ 3 day-of-cycle) 7)))))))
+        (nth-value 1 (floor (+ 3 day-of-cycle) 7))))))
 
 (defmacro define-lessp-aux (var1 var2 first &rest rest)
   (multiple-value-bind (getter test)
@@ -230,4 +230,4 @@
                 (multiple-value-bind (minute second) (floor rest +seconds-per-minute+)
                   (values (+ year (if (> month 2) 2000 2001)) month day-of-month
                           hour minute second
-                          (1+ (nth-value 1 (floor (+ 3 day-of-cycle) 7))))))))))))
+                          (nth-value 1 (floor (+ 3 day-of-cycle) 7)))))))))))
