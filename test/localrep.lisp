@@ -75,6 +75,7 @@
                       ((funcall listlessp inner outer)
                        (is o>i) (is o>=i) (is o/=i) (is (not o<i)) (is (not o<=i)) (is (not o=i)))
                       (t
+                       (is (eql (local-date-hash outer-date) (local-date-hash inner-date)))
                        (is (not o>i)) (is o>=i) (is (not o/=i)) (is (not o<i)) (is o<=i)
                        (is o=i))))))))
 
@@ -145,6 +146,7 @@
                       ((funcall listlessp inner outer)
                        (is o>i) (is o>=i) (is o/=i) (is (not o<i)) (is (not o<=i)) (is (not o=i)))
                       (t
+                       (is (eql (local-time-hash outer-date) (local-time-hash inner-date)))
                        (is (not o>i)) (is o>=i) (is (not o/=i)) (is (not o<i)) (is o<=i)
                        (is o=i))))))))
 
@@ -154,11 +156,13 @@
 (deftest local-timestamp-ordering ()
   (let* ((listlessp (make-list-lessp (list #'local-date< #'local-time<)))
          (all-dates (mapcar (lambda (list) (apply #'make-local-date list))
-                            '((1976 1 13) (3192 4 17) (651 9 30) (2000 3 1)
-                              (2038 12 31) (-3321 12 31))))
+                            '((1976 1 13) 
+                              (2038 12 31)
+                              (-3321 12 31))))
          (all-times (mapcar (lambda (list) (apply #'make-local-time list))
-                            '((0 0 0 :nanos 0) (0 0 0 :nanos 1) (0 0 0 :nanos 999999999)
-                              (12 13 14 :nanos 15016017) (23 59 59 :nanos 0) (23 59 59 :nanos 999999999))))
+                            '((0 0 0 :nanos 0)
+                              (12 13 14 :nanos 15016017)
+                              (23 59 59 :nanos 999999999))))
          (data (loop
                   for date in all-dates
                   nconcing (loop
@@ -183,6 +187,7 @@
                     ((funcall listlessp inner outer)
                      (is o>i) (is o>=i) (is o/=i) (is (not o<i)) (is (not o<=i)) (is (not o=i)))
                     (t
+                     (is (eql (local-timestamp-hash outer-date) (local-timestamp-hash inner-date)))
                      (is (not o>i)) (is o>=i) (is (not o/=i)) (is (not o<i)) (is o<=i)
                      (is o=i))))))))
 
