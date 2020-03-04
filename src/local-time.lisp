@@ -77,13 +77,13 @@
         (lt::%guess-offset seconds days (timezone-of zone))))))
                                           
 (defmethod compute-zone-offset ((object local-timestamp) (zone interop-zone))
-  (compute-zone-offset object zone))
+  (compute-local-offset object zone))
 
 (defmethod compute-zone-offset ((object local-date) (zone interop-zone))
-  (compute-zone-offset object zone))
+  (compute-local-offset object zone))
 
 (defmethod compute-zone-offset ((object local-time) (zone interop-zone))
-  (compute-zone-offset object zone))
+  (compute-local-offset object zone))
 
 
 ;;;
