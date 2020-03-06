@@ -352,23 +352,26 @@ nil)                                    ; macrolet
               (with-lock-held (*formatter-cache-lock*)
                 (or (gethash pattern *formatter-cache*)
                     (setf (gethash pattern *formatter-cache*) compiled))))))))
-     
+
+(defun resolve-format (format locale)
+  (etypecase format
+    (function format)
+    (string (compile-timestamp-printer format))
+    (cons (compile-timestamp-printer format))
+    (keyword (localized-timestamp-format format locale))))
+
 (defun print-timestamp (object
                         &key (stream *standard-output*) (zone *zone*)
                              (locale *default-locale*)
-                             (format (localized-timestamp-format :medium-timestamp locale)))
-  (funcall (if (not (typep format 'function))
-               (compile-timestamp-printer format)
-               format)
-           object
-           :stream stream :zone zone
-           :locale locale))
+                             (format :medium-timestamp))
+  (let ((printer (resolve-format format locale)))
+    (funcall printer object
+             :stream stream :zone zone
+             :locale locale)))
   
 (defun format-timestamp (stream pattern object
                          &key (locale *default-locale*) (zone *zone*))
-  (let ((formatter (if (not (typep pattern 'function))
-                       (compile-timestamp-printer pattern)
-                       pattern)))
+  (let ((formatter (resolve-format pattern locale)))
     (if stream
         (funcall formatter object
                  :stream (if (eq stream 't) *terminal-io* stream)
