@@ -317,3 +317,14 @@
 
 (defun compose-local-timestamp (date time)
   (make-local-timestamp-1 (local-date date) (local-time time)))
+
+
+
+(defvar +min-local-date+ (make-local-date-1 +min-local-year+ 1 1))
+(defvar +max-local-date+ (make-local-date-1 +max-local-year+ 12 31))
+(defvar +min-local-time+ (make-local-time-1 0 0 0 0))
+(defvar +max-local-time+ (make-local-time-1 23 59 59 999999999))
+(defvar +min-local-timestamp+ (make-local-timestamp-1 +min-local-date+ +min-local-time+))
+(defvar +max-local-timestamp+ (make-local-timestamp-1 +max-local-date+ +max-local-time+))
+
+
