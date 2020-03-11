@@ -56,7 +56,8 @@
            #:parse-timestamp-format-string #:same-zone-p #:compute-zone-offset #:instant-seconds
            #:instant-nanos #:days-in-month #:leap-year-p #:compose-local-timestamp
            #:+min-local-date+ #:+max-local-date+ #:+min-local-time+ #:+max-local-time+
-           #:+min-local-timestamp+ #:+max-local-timestamp+
+           #:+min-local-timestamp+ #:+max-local-timestamp+ #:+min-local-year+
+           #:+max-local-year+
 
            ;; This one does not belong here!
            #:*default-locale*
