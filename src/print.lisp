@@ -23,11 +23,6 @@
 
 (in-package #:darts.lib.calendar)
 
-
-(defvar *default-locale* nil
-  "The locale object to use, if none is provided explicitly. This
-   variable doesn't belong here at all.")
-
 (defvar *formatter-cache* (make-weak-hash-table :test 'equal))
 (defvar *formatter-cache-lock* (make-lock "Formatter Cache Lock"))
 
