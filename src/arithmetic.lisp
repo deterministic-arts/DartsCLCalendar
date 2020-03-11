@@ -70,6 +70,32 @@
         (multiple-value-bind (add-seconds add-nanos) (floor new-nanos 1000000000)
           (%make-duration (+ new-seconds add-seconds) add-nanos)))))
 
+(defmethod add-seconds ((object local-timestamp) (seconds integer) &optional (nanos 0))
+  (if (and (zerop seconds) (zerop nanos))
+      object
+      (let ((instant (encode-epoch-seconds (local-year object) (local-month object) (local-day object)
+                                           (local-hour object) (local-minute object) (local-second object))))
+        (multiple-value-bind (add-second add-nanos) (floor (+ (local-nanos object) nanos) 1000000000)
+          (multiple-value-bind (year month day hour minute second) (decode-epoch-seconds (+ instant seconds add-second))
+            (make-local-timestamp year month day hour minute second :nanos add-nanos))))))
+
+(defmethod add-seconds ((object local-date) (seconds integer) &optional (nanos 0))
+  (if (and (zerop seconds) (zerop nanos))
+      object
+      (let ((instant (encode-epoch-seconds (local-year object) (local-month object) (local-day object))))
+        (multiple-value-bind (add-second) (floor (+ (local-nanos object) nanos) 1000000000)
+          (multiple-value-bind (year month day dow) (decode-epoch-seconds (+ instant seconds add-second))
+            (make-local-date-1 year month day dow))))))
+
+(defmethod add-seconds ((object local-time) (seconds integer) &optional (nanos 0))
+  (if (and (zerop seconds) (zerop nanos))
+      object
+      (let ((instant (encode-epoch-seconds 2000 3 1 (local-hour object) (local-minute object) (local-second object))))
+        (multiple-value-bind (add-second add-nanos) (floor (+ (local-nanos object) nanos) 1000000000)
+          (multiple-value-bind (year month day hour minute second) (decode-epoch-seconds (+ instant seconds add-second))
+            (declare (ignore year month day))
+            (make-local-time hour minute second :nanos add-nanos))))))
+
 
 
 (defun local-iso-weekday (object)
