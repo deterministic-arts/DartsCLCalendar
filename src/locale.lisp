@@ -21,30 +21,12 @@
   THE SOFTWARE.
 |#
 
-(in-package #:common-lisp-user)
-(defpackage #:darts.asdf (:use #:common-lisp #:asdf))
-(in-package #:darts.asdf)
+(defpackage #:darts.lib.locale
+  (:use #:common-lisp)
+  (:export #:*default-locale*))
 
-(defsystem :darts.lib.calendar
-  :name "darts.lib.calendar"
-  :author "Dirk Esser"
-  :version "0.1"
-  :maintainer "Dirk Esser"
-  :licence "MIT"
-  :description "Date/time representation and handling"
-  :long-description ""
-  :depends-on (#:trivial-garbage #:bordeaux-threads #:alexandria #:darts.lib.locale)
-  :serial t
-  :components
-  ((:module :src
-    :components
-    ((:file "package")
-     (:file "definitions")
-     (:file "sysdep")
-     (:file "zones")
-     (:file "local")
-     (:file "instant")
-     (:file "duration")
-     (:file "arithmetic")
-     (:file "print")
-     ))))
+(in-package #:darts.lib.locale)
+
+(defvar *default-locale* nil
+  "The default locale to use when one is needed but not explicitly
+   provided.")

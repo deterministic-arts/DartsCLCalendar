@@ -22,7 +22,7 @@
 |#
 
 (defpackage #:darts.lib.calendar
-  (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage)
+  (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage #:darts.lib.locale)
   (:export #:local-date #:local-date-year #:local-date-month #:local-date-day
            #:local-date-weekday #:local-date-p #:local-date< #:local-date<=
            #:local-date>= #:local-date> #:local-date= #:local-date/= #:local-date-hash
@@ -57,8 +57,4 @@
            #:instant-nanos #:days-in-month #:leap-year-p #:compose-local-timestamp
            #:+min-local-date+ #:+max-local-date+ #:+min-local-time+ #:+max-local-time+
            #:+min-local-timestamp+ #:+max-local-timestamp+ #:+min-local-year+
-           #:+max-local-year+
-
-           ;; This one does not belong here!
-           #:*default-locale*
-           ))
+           #:+max-local-year+))

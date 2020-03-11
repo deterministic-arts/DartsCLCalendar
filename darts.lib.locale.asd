@@ -25,26 +25,18 @@
 (defpackage #:darts.asdf (:use #:common-lisp #:asdf))
 (in-package #:darts.asdf)
 
-(defsystem :darts.lib.calendar
-  :name "darts.lib.calendar"
+(defsystem :darts.lib.locale
+  :name "darts.lib.locale"
   :author "Dirk Esser"
   :version "0.1"
   :maintainer "Dirk Esser"
   :licence "MIT"
-  :description "Date/time representation and handling"
+  :description "Currently a placeholder by all but name"
   :long-description ""
-  :depends-on (#:trivial-garbage #:bordeaux-threads #:alexandria #:darts.lib.locale)
+  :depends-on ()
   :serial t
   :components
   ((:module :src
     :components
-    ((:file "package")
-     (:file "definitions")
-     (:file "sysdep")
-     (:file "zones")
-     (:file "local")
-     (:file "instant")
-     (:file "duration")
-     (:file "arithmetic")
-     (:file "print")
-     ))))
+    ((:file "locale")))))
+
