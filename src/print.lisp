@@ -130,7 +130,33 @@
              (lambda (,temp)
                (block ,name
                  (destructuring-bind (,@args) ,temp
-                   ,@body)))))))
+                   ,@body))))
+       ',name)))
+
+(defmacro define-simple-print-operator (name (&rest outer-lambda-list) (&rest inner-lambda-list) &body body)
+  (let ((ignored-vars nil)
+        ts-var tz-var locale-var stream-var)
+    (loop
+       for name in inner-lambda-list
+       do (cond
+            ((string= :stream name) (setf stream-var name))
+            ((string= :zone name) (setf tz-var name))
+            ((string= :locale name) (setf locale-var name))
+            ((string= :object name) (setf ts-var name))
+            (t (error "unsupported parameter name ~S" name))))
+    (unless ts-var
+      (push (setf ts-var (gensym)) ignored-vars))
+    (unless tz-var
+      (push (setf tz-var (gensym)) ignored-vars))
+    (unless locale-var
+      (push (setf locale-var (gensym)) ignored-vars))
+    (unless stream-var
+      (push (setf stream-var (gensym)) ignored-vars))
+    `(define-print-operator ,name (,@outer-lambda-list)
+       (lambda (,ts-var ,tz-var ,locale-var ,stream-var)
+         (declare (ignore ,@ignored-vars))
+         ,@body))))
+
 
 
 (macrolet
@@ -139,9 +165,8 @@
           (declare (ignorable tzinfo locale))
           ,@body)))
 
-(define-print-operator year (&key (width 1))
-  (print-lambda
-    (format stream "~v,'0D" width (local-year ts))))
+(define-simple-print-operator year (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-year object)))
 
 (define-print-operator month (&key (format :number) (width 1))
   (ecase format
@@ -171,17 +196,17 @@
     ((:abbreviation :abbrev) (print-lambda (write-string (localized-weekday-abbreviation (local-weekday ts) locale) stream)))
     ((:number) (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))))
 
-(define-print-operator hour (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-hour ts))))
+(define-simple-print-operator hour (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-hour object)))
 
-(define-print-operator hour12 (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (mod (local-hour ts) 12))))
+(define-simple-print-operator hour12 (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (mod (local-hour object) 12)))
 
-(define-print-operator minute (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-minute ts))))
+(define-simple-print-operator minute (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-minute object)))
 
-(define-print-operator second (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-second ts))))
+(define-simple-print-operator second (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-second object)))
 
 (define-print-operator subsecond (&key (precision :nanosecond))
   (if (eq precision :auto)
@@ -202,34 +227,33 @@
         (print-lambda
           (format stream "~v,'0D" width (floor (local-nanos ts) divisor))))))
 
-(define-print-operator meridian ()
-  (print-lambda (write-string (localized-meridian (if (< (local-hour ts) 12) 0 1) locale) stream)))
+(define-simple-print-operator meridian () (object locale stream)
+  (write-string (localized-meridian (if (< (local-hour object) 12) 0 1) locale) stream))
 
-(define-print-operator week (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-iso-week-number ts))))
+(define-simple-print-operator week (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-iso-week-number object)))
 
-(define-print-operator week-year (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-iso-week-year ts))))
+(define-simple-print-operator week-year (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-iso-week-year object)))
 
-(define-print-operator day-of-year (&key (width 1))
-  (print-lambda (format stream "~v,'0D" width (local-day-of-year ts))))
+(define-simple-print-operator day-of-year (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-day-of-year object)))
 
-(define-print-operator zone-offset (&key (precision :hours) (colons nil) (zero nil))
-  (print-lambda
-   (let ((offset (compute-zone-offset ts tzinfo)))
-     (if (and (zerop offset) zero)
-         (princ zero stream)
-         (multiple-value-bind (minutes* seconds) (floor offset 60)
-           (multiple-value-bind (hours minutes) (floor minutes* 60)
-             (format stream "~A~2,'0D~:[~;~A~2,'0D~:[~;~A~2,'0D~]~]"
-                     (if (minusp hours) #\- #\+)
-                     (abs hours)
-                     (or (plusp minutes) (plusp seconds) (member precision '(:minutes :seconds)))
-                     (if colons ":" "")
-                     minutes
-                     (or (plusp seconds) (eq precision :seconds))
-                     (if colons ":" "")
-                     seconds)))))))
+(define-simple-print-operator zone-offset (&key (precision :hours) (colons nil) (zero nil)) (object zone stream)
+  (let ((offset (compute-zone-offset object zone)))
+    (if (and (zerop offset) zero)
+        (princ zero stream)
+        (multiple-value-bind (minutes* seconds) (floor offset 60)
+          (multiple-value-bind (hours minutes) (floor minutes* 60)
+            (format stream "~A~2,'0D~:[~;~A~2,'0D~:[~;~A~2,'0D~]~]"
+                    (if (minusp hours) #\- #\+)
+                    (abs hours)
+                    (or (plusp minutes) (plusp seconds) (member precision '(:minutes :seconds)))
+                    (if colons ":" "")
+                    minutes
+                    (or (plusp seconds) (eq precision :seconds))
+                    (if colons ":" "")
+                    seconds))))))
 
 nil)                                    ; macrolet
 
