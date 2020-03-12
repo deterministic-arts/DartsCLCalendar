@@ -22,12 +22,13 @@
 |#
 
 (defpackage #:darts.lib.calendar
-  (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage #:darts.lib.locale)
+  (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage
+        #:darts.lib.locale)
   (:export
      #:*clock* #:*zone* #:+friday+ #:+max-local-date+ #:+max-local-time+
-     #:+max-local-timestamp+ #:+max-local-year+ #:+min-local-date+
+     #:+max-local-timestamp+ #:+max-local-year+ #:+midnight+ #:+min-local-date+
      #:+min-local-time+ #:+min-local-timestamp+ #:+min-local-year+ #:+monday+
-     #:+saturday+ #:+sunday+ #:+sunday+ #:+thursday+ #:+tuesday+ #:+wednesday+
+     #:+noon+ #:+saturday+ #:+sunday+ #:+sunday+ #:+thursday+ #:+tuesday+ #:+wednesday+
      #:add-duration #:add-seconds #:add-time-unit #:clock-now
      #:compile-timestamp-printer #:compile-timestamp-printer-pattern
      #:compose-local-timestamp #:compute-zone-offset #:days-in-month
@@ -54,11 +55,12 @@
      #:local-timestamp-equal #:local-timestamp-hash #:local-timestamp-p
      #:local-timestamp-time #:local-timestamp/= #:local-timestamp<
      #:local-timestamp<= #:local-timestamp= #:local-timestamp> #:local-timestamp>=
-     #:local-weekday #:local-year #:localized-beginning-of-week
-     #:localized-meridian #:localized-month-abbreviation #:localized-month-name
-     #:localized-timestamp-format #:localized-weekday-abbreviation
-     #:localized-weekday-name #:make-duration #:make-instant #:make-local-date
-     #:make-local-time #:make-local-timestamp #:negate-duration #:now
-     #:parse-timestamp-format-string #:posix-time-to-instant #:print-timestamp
-     #:same-zone-p #:scale-duration #:subtract-duration #:subtract-time-unit
-     #:universal-time-to-instant #:with-zone #:zone #:zone-identifier))
+     #:local-weekday #:local-year #:local-year-of-era #:local-era
+     #:localized-beginning-of-week #:localized-era-designator #:localized-meridian
+     #:localized-month-abbreviation #:localized-month-name #:localized-timestamp-format
+     #:localized-weekday-abbreviation #:localized-weekday-name #:make-duration
+     #:make-instant #:make-local-date #:make-local-time #:make-local-timestamp
+     #:negate-duration #:now #:parse-timestamp-format-string #:posix-time-to-instant
+     #:print-timestamp #:same-zone-p #:scale-duration #:subtract-duration
+     #:subtract-time-unit #:universal-time-to-instant #:with-zone #:zone
+     #:zone-identifier))

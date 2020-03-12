@@ -48,22 +48,16 @@
   (date (required-argument) :type local-date :read-only t)
   (time (required-argument) :type local-time :read-only t))
 
-
 
-(defmethod make-load-form ((object local-date) &optional environment)
-  (declare (ignore environment))
-  `(make-local-date-1 ,(local-date-year object) ,(local-date-month object)
-                      ,(local-date-day object) ,(local-date-%dow object)))
+(defvar +min-local-date+ (make-local-date-1 +min-local-year+ 1 1))
+(defvar +max-local-date+ (make-local-date-1 +max-local-year+ 12 31))
+(defvar +min-local-time+ (make-local-time-1 0 0 0 0))
+(defvar +max-local-time+ (make-local-time-1 23 59 59 999999999))
+(defvar +midnight+ +min-local-time+)
+(defvar +noon+ (make-local-time-1 12 0 0 0))
+(defvar +min-local-timestamp+ (make-local-timestamp-1 +min-local-date+ +min-local-time+))
+(defvar +max-local-timestamp+ (make-local-timestamp-1 +max-local-date+ +max-local-time+))
 
-(defmethod make-load-form ((object local-time) &optional environment)
-  (declare (ignore environment))
-  `(make-local-time-1 ,(local-time-hour object) ,(local-time-minute object)
-                      ,(local-time-second object) ,(local-time-nanos object)))
-
-(defmethod make-load-form ((object local-timestamp) &optional environment)
-  (declare (ignore environment))
-  `(make-local-timestamp-1 ,(local-timestamp-date object)
-                           ,(local-timestamp-time object)))
 
 
 (defun local-date-weekday (object)
@@ -87,6 +81,14 @@
 
 (defmethod local-year ((object local-date))
   (local-date-year object))
+
+(defun local-year-of-era (object)
+  (let ((year (local-year object)))
+    (if (plusp year) year
+        (+ (- year) 1))))
+
+(defun local-era (object)
+  (if (plusp (local-year object)) 1 0))
 
 (defmethod local-month ((object local-date))
   (local-date-month object))
@@ -320,11 +322,28 @@
 
 
 
-(defvar +min-local-date+ (make-local-date-1 +min-local-year+ 1 1))
-(defvar +max-local-date+ (make-local-date-1 +max-local-year+ 12 31))
-(defvar +min-local-time+ (make-local-time-1 0 0 0 0))
-(defvar +max-local-time+ (make-local-time-1 23 59 59 999999999))
-(defvar +min-local-timestamp+ (make-local-timestamp-1 +min-local-date+ +min-local-time+))
-(defvar +max-local-timestamp+ (make-local-timestamp-1 +max-local-date+ +max-local-time+))
+(defmethod make-load-form ((object local-date) &optional environment)
+  (declare (ignore environment))
+  (cond
+    ((local-date= object +min-local-year+) '(progn +min-local-date+))
+    ((local-date= object +max-local-year+) '(progn +max-local-date+))
+    (t `(make-local-date-1 ,(local-date-year object) ,(local-date-month object)
+                           ,(local-date-day object) ,(local-date-%dow object)))))
 
+(defmethod make-load-form ((object local-time) &optional environment)
+  (declare (ignore environment))
+  (cond
+    ((local-time= object +min-local-time+) '(progn +min-local-time+))
+    ((local-time= object +max-local-time+) '(progn +max-local-time+))
+    ((local-time= object +noon+) '(progn +noon+))
+    (t `(make-local-time-1 ,(local-time-hour object) ,(local-time-minute object)
+                           ,(local-time-second object) ,(local-time-nanos object)))))
+
+(defmethod make-load-form ((object local-timestamp) &optional environment)
+  (declare (ignore environment))
+  (cond
+    ((local-timestamp= object +min-local-timestamp+) '(progn +min-local-timestamp+))
+    ((local-timestamp= object +max-local-timestamp+) '(progn +max-local-timestamp+))
+    (t `(make-local-timestamp-1 ,(local-timestamp-date object)
+                                ,(local-timestamp-time object)))))
 

@@ -33,6 +33,7 @@
 (defgeneric localized-meridian (value locale))
 (defgeneric localized-timestamp-format (type locale))
 (defgeneric localized-beginning-of-week (locale))
+(defgeneric localized-era-designator (era locale))
 
 
 (defparameter *default-month-names*
@@ -49,6 +50,9 @@
 
 (defparameter *default-meridian*
   #("am" "pm"))
+
+(defparameter *default-era-designators*
+  #("BCE" "CE"))
 
 (defvar *default-date-format* nil)
 (defvar *default-time-format* nil)
@@ -78,6 +82,9 @@
     ((:short-time :medium-time :long-time) *default-time-format*)
     ((:short-timestamp :medium-timestamp :long-timestamp) *default-timestamp-format*)
     (otherwise (call-next-method))))
+
+(defmethod localized-era-designator (era locale)
+  (svref *default-era-designators* era))
 
 
 
@@ -168,6 +175,9 @@
 (define-simple-print-operator year (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-year object)))
 
+(define-simple-print-operator year-of-era (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-year-of-era object)))
+
 (define-print-operator month (&key (format :number) (width 1))
   (ecase format
     ((:name)
@@ -195,6 +205,12 @@
     ((:name) (print-lambda (write-string (localized-weekday-name (local-weekday ts) locale) stream)))
     ((:abbreviation :abbrev) (print-lambda (write-string (localized-weekday-abbreviation (local-weekday ts) locale) stream)))
     ((:number) (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))))
+
+(define-print-operator era (&key (format :name) (width 1))
+  (ecase format
+    ((:number) (print-lambda (format stream "~v,'0D" width (local-era ts))))
+    ((:name) (print-lambda (write-string (localized-era-designator (local-era ts) locale)
+                                         stream)))))
 
 (define-simple-print-operator hour (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-hour object)))
@@ -298,7 +314,12 @@ nil)                                    ; macrolet
                 do (incf pos) (incf count))
              (case char
                ((#\y) (ecase count
-                        ((2 4) (push `(year :width ,count) list))))
+                        ((1 2 4) (push `(year :width ,count) list))))
+               ((#\Y) (ecase count
+                        ((1 4) (push `(year-of-era :width ,count) list))))
+               ((#\c) (ecase count
+                        ((1 2) (push `(era :format :number :width ,count) list))
+                        ((3) (push `(era :format :name) list))))
                ((#\W) (ecase count
                         ((2 4) (push `(week-year :width ,count) list))))
                ((#\M) (case count
