@@ -93,12 +93,14 @@
 
 (defun make-timestamp-printer-function (commands)
   (lambda (object &key (stream *standard-output*) (locale *default-locale*) (zone *zone*))
-    (let ((ts (local-timestamp object :zone zone)))
-      (dolist (cmd commands)
-        (if (stringp cmd)
-            (write-string cmd stream)
-            (funcall cmd ts zone locale stream)))
-      object)))
+    (locally (declare (ftype (function (&optional t) t) calendar-symbols))
+      (let ((locale (and locale (calendar-symbols locale)))
+            (ts (local-timestamp object :zone zone)))
+        (dolist (cmd commands)
+          (if (stringp cmd)
+              (write-string cmd stream)
+              (funcall cmd ts zone locale stream)))
+        object))))
 
 (defun compile-timestamp-printer-pattern (list)
   (labels
@@ -274,9 +276,8 @@
 nil)                                    ; macrolet
 
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar +literal-chars+ '(#\. #\- #\: #\, #\; #\( #\) #\[ #\] #\! #\? #\space #\tab
-                            #\return #\linefeed)))
+(defparameter +literal-chars+ '(#\. #\- #\: #\, #\; #\( #\) #\[ #\] #\! #\? #\/ #\space #\tab
+                                #\return #\linefeed))
 
 (defun parse-timestamp-format-string (string &key (start 0) end)
   (let* ((string (string string))
@@ -369,16 +370,15 @@ nil)                                    ; macrolet
          (parse-command (pos)
            (when (< pos end)
              (let ((char (char string pos)))
-               (case char
-                 ((#\') (parse-literal (1+ pos)))
-                 (#.+literal-chars+ (parse-direct-literal pos))
-                 (otherwise (cond
-                              ((char<= #\a char #\z) (parse-directive char (1+ pos)))
-                              ((char<= #\A char #\Z) (parse-directive char (1+ pos)))
-                              ((char<= #\0 char #\9)
-                               (push char list)
-                               (parse-command (1+ pos)))
-                              (t (error "unsupported format character ~C" char)))))))))
+               (cond
+                 ((eql char #\') (parse-literal (1+ pos)))
+                 ((member char +literal-chars+) (parse-direct-literal pos))
+                 ((char<= #\a char #\z) (parse-directive char (1+ pos)))
+                 ((char<= #\A char #\Z) (parse-directive char (1+ pos)))
+                 ((char<= #\0 char #\9)
+                  (push char list)
+                  (parse-command (1+ pos)))
+                 (t (error "unsupported format character ~C" char)))))))
       (parse-command start)
       (nreverse list))))
                   
@@ -404,14 +404,16 @@ nil)                                    ; macrolet
                         &key (stream *standard-output*) (zone *zone*)
                              (locale *default-locale*)
                              (format :medium-timestamp))
-  (let ((printer (resolve-format format locale)))
+  (let* ((locale (and locale (calendar-symbols locale)))
+         (printer (resolve-format format locale)))
     (funcall printer object
              :stream stream :zone zone
              :locale locale)))
   
 (defun format-timestamp (stream pattern object
                          &key (locale *default-locale*) (zone *zone*))
-  (let ((formatter (resolve-format pattern locale)))
+  (let ((locale (and locale (calendar-symbols locale)))
+        (formatter (resolve-format pattern locale)))
     (if stream
         (funcall formatter object
                  :stream (if (eq stream 't) *terminal-io* stream)
@@ -429,3 +431,117 @@ nil)                                    ; macrolet
 
 (setf *default-timestamp-format*
       (compile-timestamp-printer "yyyy-MM-dd'T'HH:mm:ss.S"))
+
+
+
+(defun trim-string (value)
+  (string-trim #.(concatenate 'string '(#\space #\tab #\newline #\return))
+               value))
+
+(defun parse-string-vector (input &key (separator #\,))
+  (let ((entries (mapcar #'trim-string (split-sequence separator input))))
+    (make-array (length entries)
+                :element-type 't
+                :initial-contents entries)))
+
+(defun parse-printer (input)
+  (compile-timestamp-printer input))
+
+(define-locale-category calendar-symbols
+    ((month-names
+       :default *default-month-names* :parser parse-string-vector)
+     (month-abbreviations
+       :default *default-month-abbreviations* :parser parse-string-vector)
+     (weekday-names
+       :default *default-weekday-names* :parser parse-string-vector)
+     (weekday-abbreviations
+       :default *default-weekday-abbreviations* :parser parse-string-vector)
+     (meridian-names
+       :default *default-meridian* :parser parse-string-vector)
+     (era-names
+       :default *default-era-designators* :parser parse-string-vector)
+     (first-day-of-week
+       :default :sunday :parser (lambda (str)
+                                  (or (find (trim-string str) '(:sunday :monday :tuesday :wednesday :thursday :friday :saturday)
+                                            :test #'string-equal)
+                                      +inherit+)))
+     (short-date-format
+       :default *default-date-format* :parser parse-printer)
+     (medium-date-format
+       :default *default-date-format* :parser parse-printer)
+     (long-date-format
+       :default *default-date-format* :parser parse-printer)
+     (short-time-format
+       :default *default-time-format* :parser parse-printer)
+     (medium-time-format
+       :default *default-time-format* :parser parse-printer)
+     (long-time-format
+       :default *default-time-format* :parser parse-printer)
+     (short-timestamp-format
+       :default *default-timestamp-format* :parser parse-printer)
+     (medium-timestamp-format
+       :default *default-timestamp-format* :parser parse-printer)
+     (long-timestamp-format
+      :default *default-timestamp-format* :parser parse-printer))
+  (:cache-function t))
+
+
+(defmethod localized-month-name (month (locale locale))
+  (svref (calendar-symbols-month-names (calendar-symbols locale)) (1- month)))
+
+(defmethod localized-month-name (month (locale calendar-symbols))
+  (svref (calendar-symbols-month-names locale) (1- month)))
+
+(defmethod localized-month-abbreviation (month (locale locale))
+  (svref (calendar-symbols-month-abbreviations (calendar-symbols locale)) (1- month)))
+
+(defmethod localized-month-abbreviation (month (locale calendar-symbols))
+  (svref (calendar-symbols-month-abbreviations locale) (1- month)))
+
+(defmethod localized-weekday-name (day (locale locale))
+  (svref (calendar-symbols-weekday-names (calendar-symbols locale)) day))
+
+(defmethod localized-weekday-name (day (locale calendar-symbols))
+  (svref (calendar-symbols-weekday-names locale) day))
+
+(defmethod localized-weekday-abbreviation (day (locale locale))
+  (svref (calendar-symbols-weekday-abbreviations (calendar-symbols locale)) day))
+
+(defmethod localized-weekday-abbreviation (day (locale calendar-symbols))
+  (svref (calendar-symbols-weekday-abbreviations locale) day))
+
+(defmethod localized-meridian (value (locale locale))
+  (svref (calendar-symbols-meridian-names (calendar-symbols locale)) value))
+
+(defmethod localized-meridian (value (locale calendar-symbols))
+  (svref (calendar-symbols-meridian-names locale) value))
+
+(defmethod localized-era-designator (era (locale locale))
+  (svref (calendar-symbols-era-names (calendar-symbols locale)) era))
+
+(defmethod localized-era-designator (era (locale calendar-symbols))
+  (svref (calendar-symbols-era-names locale) era))
+
+(defmethod localized-beginning-of-week ((locale locale))
+  (calendar-symbols-first-day-of-week (calendar-symbols locale)))
+
+(defmethod localized-beginning-of-week ((locale calendar-symbols))
+  (calendar-symbols-first-day-of-week locale))
+
+(defmethod localized-timestamp-format (type (locale locale))
+  (localized-timestamp-format type (calendar-symbols locale)))
+
+(defmethod localized-timestamp-format (type (locale calendar-symbols))
+  (case type
+    ((:short-date) (calendar-symbols-short-date-format locale))
+    ((:medium-date) (calendar-symbols-medium-date-format locale))
+    ((:long-date) (calendar-symbols-long-date-format locale))
+    ((:short-time) (calendar-symbols-short-time-format locale))
+    ((:medium-time) (calendar-symbols-medium-time-format locale))
+    ((:long-time) (calendar-symbols-long-time-format locale))
+    ((:short-timestamp) (calendar-symbols-short-timestamp-format locale))
+    ((:medium-timestamp) (calendar-symbols-medium-timestamp-format locale))
+    ((:long-timestamp) (calendar-symbols-long-timestamp-format locale))
+    (otherwise (call-next-method))))
+
+(add-locale-resource-directory (asdf:system-relative-pathname '#:darts.lib.calendar "./data/"))

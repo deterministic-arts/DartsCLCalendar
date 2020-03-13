@@ -33,7 +33,7 @@
   :licence "MIT"
   :description "Date/time representation and handling"
   :long-description ""
-  :depends-on (#:trivial-garbage #:bordeaux-threads #:alexandria #:darts.lib.locale)
+  :depends-on (#:trivial-garbage #:bordeaux-threads #:alexandria #:darts.lib.locale #:split-sequence)
   :serial t
   :components
   ((:module :src
