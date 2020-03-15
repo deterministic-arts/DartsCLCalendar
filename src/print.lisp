@@ -303,7 +303,7 @@ nil)                                    ; macrolet
          (parse-direct-literal (pos)
            (let ((buffer (make-array (- end pos) :element-type 'character :fill-pointer 0)))
              (loop
-                while (and (< pos end) (find (char string pos) #.(concatenate 'string +literal-chars+)))
+                while (and (< pos end) (find (char string pos) +literal-chars+))
                 do (vector-push-extend (char string pos) buffer)
                    (incf pos))
              (push (coerce buffer 'simple-string) list)
