@@ -63,4 +63,4 @@
      #:negate-duration #:now #:parse-timestamp-format-string #:posix-time-to-instant
      #:print-timestamp #:same-zone-p #:scale-duration #:subtract-duration
      #:subtract-time-unit #:universal-time-to-instant #:with-zone #:zone
-     #:zone-identifier))
+     #:zone-identifier #:calendar-symbols #:make-calendar-symbols))
