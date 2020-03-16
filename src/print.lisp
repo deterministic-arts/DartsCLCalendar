@@ -92,9 +92,9 @@
 (defvar *format-operators* (make-hash-table :test 'equal))
 
 (defun make-timestamp-printer-function (commands)
-  (lambda (object &key (stream *standard-output*) (locale *default-locale*) (zone *zone*))
-    (locally (declare (ftype (function (&optional t) t) calendar-symbols))
-      (let ((locale (and locale (calendar-symbols locale)))
+  (lambda (object &key (stream *standard-output*) (locale *locale*) (zone *zone*))
+    (locally (declare (ftype (function (&optional t) t) resolve-calendar-symbols))
+      (let ((locale (resolve-calendar-symbols locale))
             (ts (local-timestamp object :zone zone)))
         (dolist (cmd commands)
           (if (stringp cmd)
@@ -175,10 +175,14 @@
           ,@body)))
 
 (define-simple-print-operator year (&key (width 1)) (object stream)
-  (format stream "~v,'0D" width (local-year object)))
+  (format stream "~v,'0D"
+          width (if (eql width 2) (rem (local-year object) 100)
+                    (local-year object))))
 
 (define-simple-print-operator year-of-era (&key (width 1)) (object stream)
-  (format stream "~v,'0D" width (local-year-of-era object)))
+  (format stream "~v,'0D"
+          width (if (eql width 2) (rem (local-year-of-era object) 100)
+                    (local-year-of-era object))))
 
 (define-print-operator month (&key (format :number) (width 1))
   (ecase format
@@ -252,7 +256,9 @@
   (format stream "~v,'0D" width (local-iso-week-number object)))
 
 (define-simple-print-operator week-year (&key (width 1)) (object stream)
-  (format stream "~v,'0D" width (local-iso-week-year object)))
+  (format stream "~v,'0D" width
+          (if (eql width 2) (rem (local-iso-week-number object) 100)
+              (local-iso-week-year object))))
 
 (define-simple-print-operator day-of-year (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-day-of-year object)))
@@ -278,6 +284,9 @@ nil)                                    ; macrolet
 
 (defparameter +literal-chars+ '(#\. #\- #\: #\, #\; #\( #\) #\[ #\] #\! #\? #\/ #\space #\tab
                                 #\return #\linefeed))
+
+;;; See https://unicode-org.github.io/icu-docs/apidoc/released/icu4j/com/ibm/icu/text/SimpleDateFormat.html
+;;; for a description of the origin of the format codes used here.
 
 (defun parse-timestamp-format-string (string &key (start 0) end)
   (let* ((string (string string))
@@ -315,29 +324,27 @@ nil)                                    ; macrolet
                 do (incf pos) (incf count))
              (case char
                ((#\y) (ecase count
-                        ((1 2 4) (push `(year :width ,count) list))))
+                        ((1 2 3 4) (push `(year :width ,count) list))))
+               ((#\u) (ecase count
+                        ((1 2 3 4) (push `(year-of-era :width ,count) list))))
                ((#\Y) (ecase count
-                        ((1 4) (push `(year-of-era :width ,count) list))))
-               ((#\c) (ecase count
-                        ((1 2) (push `(era :format :number :width ,count) list))
-                        ((3) (push `(era :format :name) list))))
-               ((#\W) (ecase count
-                        ((2 4) (push `(week-year :width ,count) list))))
+                        ((1 2 3 4) (push `(week-year :width ,count) list))))
+               ((#\G) (ecase count
+                        ((1 2 3) (push `(era :format :name) list))))
                ((#\M) (case count
                         ((1 2) (push `(month :format :number :width ,count) list))
                         ((3) (push `(month :format :abbreviation) list))
                         (otherwise (push `(month :format :name) list))))
                ((#\d) (ecase count
-                        ((1 2) (push `(day :format :number :width ,count) list))
-                        ((3) (push `(day :format :english-ordinal) list))))
+                        ((1 2) (push `(day :format :number :width ,count) list))))
                ((#\D) (ecase count
                         ((1 2 3) (push `(day-of-year :width ,count) list))))
-               ((#\w) (ecase count
-                        ((1 2) (push `(week :width ,count) list))))
-               ((#\e) (case count
+               ((#\E) (case count
                         ((1 2) (push `(weekday :format :number :width ,count) list))
                         ((3) (push `(weekday :format :abbreviation) list))
-                        (otherwise (push `(weekday :format :name) list))))
+                        ((4) (push `(weekday :format :name) list))))
+               ((#\w) (ecase count
+                        ((1 2) (push `(week :width ,count) list))))
                ((#\H) (ecase count
                         ((1 2) (push `(hour :width ,count) list))))
                ((#\h) (ecase count
@@ -402,17 +409,17 @@ nil)                                    ; macrolet
 
 (defun print-timestamp (object
                         &key (stream *standard-output*) (zone *zone*)
-                             (locale *default-locale*)
+                             (locale *locale*)
                              (format :medium-timestamp))
-  (let* ((locale (and locale (calendar-symbols locale)))
+  (let* ((locale (resolve-calendar-symbols locale))
          (printer (resolve-format format locale)))
     (funcall printer object
              :stream stream :zone zone
              :locale locale)))
   
 (defun format-timestamp (stream pattern object
-                         &key (locale *default-locale*) (zone *zone*))
-  (let ((locale (and locale (calendar-symbols locale)))
+                         &key (locale *locale*) (zone *zone*))
+  (let ((locale (resolve-calendar-symbols locale))
         (formatter (resolve-format pattern locale)))
     (if stream
         (funcall formatter object
@@ -485,6 +492,12 @@ nil)                                    ; macrolet
       :default *default-timestamp-format* :parser parse-printer))
   (:cache-function t))
 
+(defun resolve-calendar-symbols (key)
+  (typecase key
+    (null nil)
+    (locale (calendar-symbols key))
+    (string (calendar-symbols (locale key)))
+    (t key)))
 
 (defmethod localized-month-name (month (locale locale))
   (svref (calendar-symbols-month-names (calendar-symbols locale)) (1- month)))
