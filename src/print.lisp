@@ -454,7 +454,7 @@ nil)                                    ; macrolet
 (defun parse-printer (input)
   (compile-timestamp-printer input))
 
-(define-locale-category calendar-symbols
+(define-locale-resource calendar-symbols
     ((month-names
        :default *default-month-names* :parser parse-string-vector)
      (month-abbreviations
