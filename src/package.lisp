@@ -23,7 +23,8 @@
 
 (defpackage #:darts.lib.calendar
   (:use #:common-lisp #:alexandria #:bordeaux-threads #:trivial-garbage
-        #:darts.lib.locale #:darts.lib.locale.resources #:split-sequence)
+        #:darts.lib.locale #:darts.lib.locale.resources #:split-sequence
+        #:darts.lib.tools)
   (:export
      #:*clock* #:*zone* #:+friday+ #:+max-local-date+ #:+max-local-time+
      #:+max-local-timestamp+ #:+max-local-year+ #:+midnight+ #:+min-local-date+

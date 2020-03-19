@@ -57,6 +57,7 @@
 (defvar *default-date-format* nil)
 (defvar *default-time-format* nil)
 (defvar *default-timestamp-format* nil)
+(defvar *default-timestamp-template* "{1} {0}")
 
 (defmethod localized-month-name (month locale)
   (svref *default-month-names* (1- month)))
@@ -78,9 +79,9 @@
 
 (defmethod localized-timestamp-format (type locale)
   (case type
-    ((:short-date :medium-date :long-date) *default-date-format*)
-    ((:short-time :medium-time :long-time) *default-time-format*)
-    ((:short-timestamp :medium-timestamp :long-timestamp) *default-timestamp-format*)
+    ((:short-date :medium-date :long-date :full-date) *default-date-format*)
+    ((:short-time :medium-time :long-time :full-time) *default-time-format*)
+    ((:short-timestamp :medium-timestamp :long-timestamp :full-timestamp) *default-timestamp-format*)
     (otherwise (call-next-method))))
 
 (defmethod localized-era-designator (era locale)
@@ -395,13 +396,13 @@ nil)                                    ; macrolet
                         ((3) (push `(subsecond :precision :ms) list))
                         ((6) (push `(subsecond :precision :us) list))
                         ((9) (push `(subsecond :precision :ns) list))))
-               ((#\x) (ecase count
+               ((#\x #\z) (ecase count
                         ((1) (push `(zone-offset :precision :hours :colons nil) list))
                         ((2) (push `(zone-offset :precision :minutes :colons nil) list))
                         ((3) (push `(zone-offset :precision :minutes :colons t) list))
                         ((4) (push `(zone-offset :precision :seconds :colons nil) list))
                         ((5) (push `(zone-offset :precision :seconds :colons t) list))))
-               ((#\X) (ecase count
+               ((#\X #\Z) (ecase count
                         ((1) (push `(zone-offset :precision :hours :colons nil :zero #\Z) list))
                         ((2) (push `(zone-offset :precision :minutes :colons nil :zero #\Z) list))
                         ((3) (push `(zone-offset :precision :minutes :colons t :zero #\Z) list))
@@ -515,18 +516,24 @@ nil)                                    ; macrolet
        :default *default-date-format* :parser parse-printer)
      (long-date-format
        :default *default-date-format* :parser parse-printer)
+     (full-date-format
+       :default *default-date-format* :parser parse-printer)
      (short-time-format
        :default *default-time-format* :parser parse-printer)
      (medium-time-format
        :default *default-time-format* :parser parse-printer)
      (long-time-format
        :default *default-time-format* :parser parse-printer)
-     (short-timestamp-format
-       :default *default-timestamp-format* :parser parse-printer)
-     (medium-timestamp-format
-       :default *default-timestamp-format* :parser parse-printer)
-     (long-timestamp-format
-      :default *default-timestamp-format* :parser parse-printer))
+     (full-time-format
+       :default *default-time-format* :parser parse-printer)
+     (short-timestamp-template
+       :default *default-timestamp-template* :parser trim-string)
+     (medium-timestamp-template
+       :default *default-timestamp-template* :parser trim-string)
+     (long-timestamp-template
+       :default *default-timestamp-template* :parser trim-string)
+     (full-timestamp-template
+       :default *default-timestamp-template* :parser trim-string))
   (:cache-function t))
 
 (defun resolve-calendar-symbols (key)
@@ -581,17 +588,47 @@ nil)                                    ; macrolet
 (defmethod localized-timestamp-format (type (locale locale))
   (localized-timestamp-format type (calendar-symbols locale)))
 
+(defun derive-timestamp-format (locale property date-fmt time-fmt template-fmt)
+  (let ((cached (property-value locale property)))
+    (or cached
+        (let* ((date-part (funcall date-fmt locale))
+               (time-part (funcall time-fmt locale))
+               (template-str (funcall template-fmt locale))
+               (date-str (and date-part (time-format-pattern date-part)))
+               (time-str (and time-part (time-format-pattern time-part))))
+          (if (not (and date-str time-str template-str))
+              (setf (property-value locale property) *default-timestamp-format*)
+              (let* ((date-pos (search "{1}" template-str))
+                     (time-pos (search "{0}" template-str))
+                     (pattern (if (< date-pos time-pos)
+                                  (concatenate 'string
+                                               (subseq template-str 0 date-pos)
+                                               date-str
+                                               (subseq template-str (+ date-pos 3) time-pos)
+                                               time-str
+                                               (subseq template-str (+ time-pos 3)))
+                                  (concatenate 'string
+                                               (subseq template-str 0 time-pos)
+                                               time-str
+                                               (subseq template-str (+ time-pos 3) date-pos)
+                                               date-str
+                                               (subseq template-str (+ date-pos 3))))))
+                (setf (property-value locale property) (time-format pattern))))))))
+
 (defmethod localized-timestamp-format (type (locale calendar-symbols))
   (case type
     ((:short-date) (calendar-symbols-short-date-format locale))
     ((:medium-date) (calendar-symbols-medium-date-format locale))
     ((:long-date) (calendar-symbols-long-date-format locale))
+    ((:full-date) (calendar-symbols-full-date-format locale))
     ((:short-time) (calendar-symbols-short-time-format locale))
     ((:medium-time) (calendar-symbols-medium-time-format locale))
     ((:long-time) (calendar-symbols-long-time-format locale))
-    ((:short-timestamp) (calendar-symbols-short-timestamp-format locale))
-    ((:medium-timestamp) (calendar-symbols-medium-timestamp-format locale))
-    ((:long-timestamp) (calendar-symbols-long-timestamp-format locale))
+    ((:full-time) (calendar-symbols-full-time-format locale))
+    ((:short-timestamp) (derive-timestamp-format locale 'short-timestamp-format #'calendar-symbols-short-date-format #'calendar-symbols-short-time-format #'calendar-symbols-short-timestamp-template))
+    ((:medium-timestamp) (derive-timestamp-format locale 'medium-timestamp-format #'calendar-symbols-medium-date-format #'calendar-symbols-medium-time-format #'calendar-symbols-medium-timestamp-template))
+    ((:long-timestamp) (derive-timestamp-format locale 'long-timestamp-format #'calendar-symbols-long-date-format #'calendar-symbols-long-time-format #'calendar-symbols-long-timestamp-template))
+    ((:full-timestamp) (derive-timestamp-format locale 'full-timestamp-format #'calendar-symbols-full-date-format #'calendar-symbols-full-time-format #'calendar-symbols-full-timestamp-template))
     (otherwise (call-next-method))))
 
 (add-locale-resource-directory (asdf:system-relative-pathname '#:darts.lib.calendar "./data/"))

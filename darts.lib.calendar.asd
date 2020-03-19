@@ -34,7 +34,7 @@
   :description "Date/time representation and handling"
   :long-description ""
   :depends-on (#:trivial-garbage #:bordeaux-threads #:alexandria #:darts.lib.locale
-               #:split-sequence #:atomics)
+               #:split-sequence #:atomics #:darts.lib.tools)
   :serial t
   :components
   ((:module :src
