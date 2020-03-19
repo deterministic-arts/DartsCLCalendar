@@ -13,7 +13,9 @@ particular order):
 
 **This library is work in progress** It is currently somewhat usable as a `local-time` 
 replacement for limited use cases. Proper time zone support still requires `local-time`
-since we currently abuse local time's support for compiled time zone files.
+since we currently abuse local time's support for compiled time zone files. 
+Formatting date/time values is more flexible than in `locale-time` due to the
+support for internationalization and locale-specific date/time patterns.
 
 ## Date/Time Representations
 
@@ -228,6 +230,20 @@ value is generally defaulted to the corresponding value from the full "epoch"
  - Function `format-timestamp` _stream_ _pattern_ _object_ `&key` _locale_ _zone_ &rarr; _result_
  - Function `print-timestamp` _object_ `&key` _stream_ _zone_ _locale_ _format_ &rarr; _object_
  
+## Internationalization
+
+This library ships with a bunch of localization files for various locales;
+this includes localized month names, names for the days of the week, date
+and time formatting patterns, etc. These localization files have been 
+generated from the [CLDR database][CLDR] by an [external tool][l10ntool].
+The update process right now is "semi-automatic" and involves me downloading
+new versions of the database, extracting the files, and starting the 
+conversion tool.
+
+A few locales are not currently supported (sorry!) namely all those, which
+use numeric codes to represent the country/territory in their identifiers
+in the CLDR database.
+ 
 ## Random notes
 
  - Goal: provide clean date/time values representations; in particular, provide a
@@ -258,3 +274,5 @@ Non-goals:
 [java8-time]: http://docs.oracle.com/javase/8/docs/api/java/time/package-summary.html
 [naggum]: http://naggum.no/lugm-time.html
 [hinnant]: http://howardhinnant.github.io/date_algorithms.html
+[CLDR]: http://cldr.unicode.org/index/downloads
+[l10ntool]: https://github.com/deterministic-arts/DartsCLLocalization
