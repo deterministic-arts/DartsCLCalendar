@@ -221,9 +221,12 @@ value is generally defaulted to the corresponding value from the full "epoch"
  
 ### Formatting
 
+ - Type `time-format`
+ - Function `time-format` _object_ &rarr; _value_
+ - Function `time-format-pattern` _object_ &rarr; _value_
+ - Function `time-format-expression` _object_ &rarr; _value_
  - Function `format-timestamp` _stream_ _pattern_ _object_ `&key` _locale_ _zone_ &rarr; _result_
  - Function `print-timestamp` _object_ `&key` _stream_ _zone_ _locale_ _format_ &rarr; _object_
- - Function `compile-timestamp-printer` _pattern_ &rarr; _function_
  
 ## Random notes
 

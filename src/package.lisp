@@ -30,7 +30,7 @@
      #:+min-local-time+ #:+min-local-timestamp+ #:+min-local-year+ #:+monday+
      #:+noon+ #:+saturday+ #:+sunday+ #:+sunday+ #:+thursday+ #:+tuesday+ #:+wednesday+
      #:add-duration #:add-seconds #:add-time-unit #:clock-now
-     #:compile-timestamp-printer #:compile-timestamp-printer-pattern
+     #:make-time-format #:time-format #:time-format-pattern #:time-format-expression
      #:compose-local-timestamp #:compute-zone-offset #:days-in-month
      #:decode-epoch-seconds #:define-zone-constructor #:duration #:duration-between
      #:duration-hash #:duration-hash #:duration-minusp #:duration-nanos

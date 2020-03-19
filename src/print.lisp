@@ -88,6 +88,24 @@
 
 
 
+(atomics:defstruct (time-format (:copier nil)
+                                (:constructor make-time-format-1 (expression
+                                                                  &key pattern
+                                                                       ((:printer %printer) nil)
+                                                                       ((:parser %parser) nil))))
+  (pattern nil :type (or null string) :read-only t)
+  (expression nil :type t :read-only t)
+  (%printer nil :type t)
+  (%parser nil :type t))
+
+(defmethod print-object ((object time-format) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (let ((pattern (time-format-pattern object)))
+      (if pattern
+          (write-string pattern stream)
+          (write-string "(complex)" stream))))
+  object)
+
 (defvar *format-lock* (make-lock "Formatter Table Lock"))
 (defvar *format-operators* (make-hash-table :test 'equal))
 
@@ -102,7 +120,7 @@
               (funcall cmd ts zone locale stream)))
         object))))
 
-(defun compile-timestamp-printer-pattern (list)
+(defun compile-timestamp-printer-commands (list)
   (labels
       ((parse-directive (thing)
          (cond
@@ -130,7 +148,18 @@
     (let ((sequence nil))
       (dolist (directive list)
         (setf sequence (push-command (parse-directive directive) sequence)))
-      (make-timestamp-printer-function (nreverse sequence)))))
+      (nreverse sequence))))
+
+(defun time-format-printer (object)
+  (loop
+     (let ((old (time-format-%printer object)))
+       (if old
+           (return old)
+           (let* ((expression (time-format-expression object))
+                  (commands (compile-timestamp-printer-commands expression))
+                  (new (make-timestamp-printer-function commands)))
+             (when (atomics:cas (time-format-%printer object) old new)
+               (return new)))))))
                
 (defmacro define-print-operator (name (&rest args) &body body)
   (let ((temp (gensym)))
@@ -389,23 +418,25 @@ nil)                                    ; macrolet
       (parse-command start)
       (nreverse list))))
                   
-(defun compile-timestamp-printer (pattern)
-  (if (not (stringp pattern))
-      (compile-timestamp-printer-pattern pattern)
-      (let ((compiled (with-lock-held (*formatter-cache-lock*)
-                        (gethash pattern *formatter-cache*))))
-        (or compiled
-            (let ((compiled (compile-timestamp-printer-pattern (parse-timestamp-format-string pattern))))
-              (with-lock-held (*formatter-cache-lock*)
-                (or (gethash pattern *formatter-cache*)
-                    (setf (gethash pattern *formatter-cache*) compiled))))))))
+(defun time-format (pattern)
+  (etypecase pattern
+    (time-format pattern)
+    (cons (make-time-format-1 pattern))
+    (string (let ((compiled (with-lock-held (*formatter-cache-lock*)
+                              (gethash pattern *formatter-cache*))))
+              (or compiled
+                  (let* ((commands (parse-timestamp-format-string pattern))
+                         (format (make-time-format-1 commands :pattern pattern)))
+                    (with-lock-held (*formatter-cache-lock*)
+                      (or (gethash pattern *formatter-cache*)
+                          (setf (gethash pattern *formatter-cache*) format)))))))))
 
 (defun resolve-format (format locale)
   (etypecase format
-    (function format)
-    (string (compile-timestamp-printer format))
-    (cons (compile-timestamp-printer format))
-    (keyword (localized-timestamp-format format locale))))
+    (time-format format)
+    (string (time-format format))
+    (cons (time-format format))
+    (keyword (time-format (localized-timestamp-format format locale)))))
 
 (defun print-timestamp (object
                         &key (stream *standard-output*) (zone *zone*)
@@ -413,7 +444,7 @@ nil)                                    ; macrolet
                              (format :medium-timestamp))
   (let* ((locale (resolve-calendar-symbols locale))
          (printer (resolve-format format locale)))
-    (funcall printer object
+    (funcall (time-format-printer printer) object
              :stream stream :zone zone
              :locale locale)))
   
@@ -422,22 +453,22 @@ nil)                                    ; macrolet
   (let ((locale (resolve-calendar-symbols locale))
         (formatter (resolve-format pattern locale)))
     (if stream
-        (funcall formatter object
+        (funcall (time-format-printer formatter) object
                  :stream (if (eq stream 't) *terminal-io* stream)
                  :locale locale :zone zone)
         (with-output-to-string (stream)
-          (funcall formatter object
+          (funcall (time-format-printer formatter) object
                    :stream stream
                    :locale locale :zone zone)))))
 
 (setf *default-date-format*
-      (compile-timestamp-printer "yyyy-MM-dd"))
+      (time-format "yyyy-MM-dd"))
 
 (setf *default-time-format*
-      (compile-timestamp-printer "HH:mm:ss.S"))
+      (time-format "HH:mm:ss.S"))
 
 (setf *default-timestamp-format*
-      (compile-timestamp-printer "yyyy-MM-dd'T'HH:mm:ss.S"))
+      (time-format "yyyy-MM-dd'T'HH:mm:ss.S"))
 
 
 
@@ -452,7 +483,7 @@ nil)                                    ; macrolet
                 :initial-contents entries)))
 
 (defun parse-printer (input)
-  (compile-timestamp-printer input))
+  (time-format (trim-string input)))
 
 (define-locale-resource calendar-symbols
     ((month-names
