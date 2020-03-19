@@ -247,11 +247,13 @@
     ((:name) (print-lambda (write-string (localized-era-designator (local-era ts) locale)
                                          stream)))))
 
-(define-simple-print-operator hour (&key (width 1)) (object stream)
-  (format stream "~v,'0D" width (local-hour object)))
+(define-simple-print-operator hour (&key (width 1) exclude-zero) (object stream)
+  (let ((value (local-hour object)))
+    (format stream "~v,'0D" width (if (and (zerop value) exclude-zero) 24 value))))
 
-(define-simple-print-operator hour12 (&key (width 1)) (object stream)
-  (format stream "~v,'0D" width (mod (local-hour object) 12)))
+(define-simple-print-operator hour12 (&key (width 1) exclude-zero) (object stream)
+  (let ((value (mod (local-hour object) 12)))
+    (format stream "~v,'0D" width (if (and (zerop value) exclude-zero) 12 value))))
 
 (define-simple-print-operator minute (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-minute object)))
@@ -376,8 +378,12 @@ nil)                                    ; macrolet
                         ((1 2) (push `(week :width ,count) list))))
                ((#\H) (ecase count
                         ((1 2) (push `(hour :width ,count) list))))
-               ((#\h) (ecase count
+               ((#\K) (ecase count
                         ((1 2) (push `(hour12 :width ,count) list))))
+               ((#\k) (ecase count
+                        ((1 2) (push `(hour :width ,count :exclude-zero t) list))))
+               ((#\h) (ecase count
+                        ((1 2) (push `(hour12 :width ,count :exclude-zero t) list))))
                ((#\a) (ecase count
                         ((1 2) (push `(meridian) list))))
                ((#\m) (ecase count
