@@ -80,7 +80,7 @@
          value))
 
 (defmethod localized-beginning-of-week (locale)
-  :sunday)
+  +sunday+)
 
 (defmethod localized-timestamp-format (type locale)
   (case type
@@ -229,7 +229,14 @@
 (define-print-operator weekday (&key (format :numeric) (width 1))
   (ecase format
     ((:abbreviated :narrow :wide :short) (print-lambda (write-string (localized-weekday (local-weekday ts) locale format) stream)))
-    ((:numeric) (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))))
+    ((:numeric)
+     (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))
+    ((:local-numeric)
+     (print-lambda
+      (let* ((fow (localized-beginning-of-week locale))
+             (dow (local-weekday ts))
+             (loc (if (<= fow dow) (1+ (- dow fow)) (- 7 (- fow dow)))))
+        (format stream "~v,'0D" width loc))))))        
 
 (define-print-operator era (&key (format :numeric) (width 1))
   (ecase format
@@ -376,6 +383,11 @@ nil)                                    ; macrolet
                         ((1 2) (push `(day :width ,count) list))))
                ((#\D) (ecase count
                         ((1 2 3) (push `(day-of-year :width ,count) list))))
+               ((#\e #\c) (case count
+                            ((1 2) (push `(weekday :format :local-numeric :width ,count) list))
+                            ((4) (push `(weekday :format :wide) list))
+                            ((5) (push `(weekday :format :narrow) list))
+                            ((6) (push `(weekday :format :short) list))))
                ((#\E) (case count
                         ((1 2 3) (push `(weekday :format :abbreviated :width ,count) list))
                         ((4) (push `(weekday :format :wide) list))
@@ -424,10 +436,10 @@ nil)                                    ; macrolet
                  ((member char +literal-chars+) (parse-direct-literal pos))
                  ((char<= #\a char #\z) (parse-directive char (1+ pos)))
                  ((char<= #\A char #\Z) (parse-directive char (1+ pos)))
-                 ((char<= #\0 char #\9)
+                 ((or (char<= #\0 char #\9) (> (char-code char) 127))
                   (push char list)
                   (parse-command (1+ pos)))
-                 (t (error "unsupported format character ~C" char)))))))
+                 (t (error "unsupported format character ~:@C at ~D in ~S" char pos string)))))))
       (parse-command start)
       (nreverse list))))
                   
@@ -525,7 +537,7 @@ nil)                                    ; macrolet
             (setf position npos)
             (unless position
               (return (make-array count
-                                  :element-type t
+                                  :element-type 'string
                                   :initial-contents (reverse list))))))))
   
 (defun parse-printer (input)
@@ -533,85 +545,84 @@ nil)                                    ; macrolet
 
 (define-locale-resource calendar-symbols
     ((months-narrow
-       :property "months[narrow]" :default *default-month-abbreviations*
+       :property "months[narrow]" :type (array string (12)) :default *default-month-abbreviations*
        :parser parse-string-vector)
      (months-abbreviated
-       :property "month[abbreviated]" :default *default-month-abbreviations*
+       :property "month[abbreviated]" :type (array string (12)) :default *default-month-abbreviations*
        :parser parse-string-vector)
      (months-wide
-       :property "months[wide]" :default *default-month-names*
+       :property "months[wide]" :type (array string (12)) :default *default-month-names*
        :parser parse-string-vector)
      (weekdays-narrow
-       :property "weekdays[narrow]" :default *default-weekday-abbreviations*
+       :property "weekdays[narrow]" :type (array string (7)) :default *default-weekday-abbreviations*
        :parser parse-string-vector)
      (weekdays-short
-       :property "weekdays[short]" :default *default-weekday-abbreviations*
+       :property "weekdays[short]" :type (array string (7)) :default *default-weekday-abbreviations*
        :parser parse-string-vector)
      (weekdays-abbreviated
-       :property "weekdays[abbreviated]" :default *default-weekday-abbreviations*
+       :property "weekdays[abbreviated]" :type (array string (7)) :default *default-weekday-abbreviations*
        :parser parse-string-vector)
      (weekdays-wide
-       :property "weekdays[wide]" :default *default-weekday-names*
+       :property "weekdays[wide]" :type (array string (7)) :default *default-weekday-names*
        :parser parse-string-vector)
      (eras-narrow
-       :property "eras[narrow]" :default *default-era-designators*
+       :property "eras[narrow]" :type (array string (2)) :default *default-era-designators*
        :parser parse-string-vector)
      (eras-abbreviated
-       :property "eras[abbreviated]" :default *default-era-designators*
+       :property "eras[abbreviated]" :type (array string (2)) :default *default-era-designators*
        :parser parse-string-vector)
      (eras-wide
-       :property "eras[wide]" :default *default-era-designators*
+       :property "eras[wide]" :type (array string (2)) :default *default-era-designators*
        :parser parse-string-vector)
      (meridians-narrow
-       :property "meridians[narrow]" :default *default-meridian*
+       :property "meridians[narrow]" :type (array string (2)) :default *default-meridian*
        :parser parse-string-vector)
      (meridians-abbreviated
-       :property "meridians[abbreviated]" :default *default-meridian*
+       :property "meridians[abbreviated]" :type (array string (2)) :default *default-meridian*
        :parser parse-string-vector)
      (meridians-wide
-       :property "meridians[wide]" :default *default-meridian*
+       :property "meridians[wide]" :type (array string (2)) :default *default-meridian*
        :parser parse-string-vector)
      (date-format-short
-       :property "date-format[short]" :default *default-date-format*
+       :property "date-format[short]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (date-format-medium
-       :property "date-format[medium]" :default *default-date-format*
+       :property "date-format[medium]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (date-format-long
-       :property "date-format[long]" :default *default-date-format*
+       :property "date-format[long]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (date-format-full
-       :property "date-format[full]" :default *default-date-format*
+       :property "date-format[full]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (time-format-short
-       :property "time-format[short]" :default *default-date-format*
+       :property "time-format[short]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (time-format-medium
-       :property "time-format[medium]" :default *default-date-format*
+       :property "time-format[medium]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (time-format-long
-       :property "time-format[long]" :default *default-date-format*
+       :property "time-format[long]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (time-format-full
-       :property "time-format[full]" :default *default-date-format*
+       :property "time-format[full]" :type time-format :default *default-date-format*
        :parser parse-printer)
      (timestamp-template-short
-       :property "timestamp-template[short]" :default *default-date-format*
+       :property "timestamp-template[short]" :type string :default "{1}, {0}"
        :parser trim-string)
      (timestamp-template-medium
-       :property "timestamp-template[medium]" :default *default-date-format*
+       :property "timestamp-template[medium]" :type string :default "{1}, {0}"
        :parser trim-string)
      (timestamp-template-long
-       :property "timestamp-template[long]" :default *default-date-format*
+       :property "timestamp-template[long]" :type string :default "{1}, {0}"
        :parser trim-string)
      (timestamp-template-full
-       :property "timestamp-template[full]" :default *default-date-format*
+       :property "timestamp-template[full]" :type string :default "{1}, {0}"
        :parser trim-string)
      (first-day-of-week
-       :default :sunday :parser (lambda (str)
-                                  (or (find (trim-string str) '(:sunday :monday :tuesday :wednesday :thursday :friday :saturday)
-                                            :test #'string-equal)
-                                      +inherit+))))
+      :default +sunday+ :type (integer 0 6)
+      :parser (lambda (str) (or (position (trim-string str) '(:sunday :monday :tuesday :wednesday :thursday :friday :saturday) :test #'string-equal)
+                                +inherit+))))
   (:conc-name calendar-)
   (:cache-function t))
 
@@ -651,49 +662,64 @@ nil)                                    ; macrolet
     (if (eq vector +inherit+) (call-next-method) (aref vector era))))
 
 (defmethod localized-beginning-of-week ((locale calendar-symbols))
-  (calendar-first-day-of-week locale))
+  (let ((result (calendar-first-day-of-week locale)))
+    (if (eq result +inherit+) (call-next-method) result)))
+
+(defmacro unless-inherited ((&rest bindings) &body body)
+  (if (null bindings)
+      `(progn ,@body)
+      (destructuring-bind ((var form) &rest more) bindings
+        `(let ((,var ,form))
+           (if (eq ,var +inherit+) +inherit+
+               (unless-inherited (,@more) ,@body))))))
 
 (defun derive-timestamp-format (locale property date-fmt time-fmt template-fmt)
   (let ((cached (property-value locale property)))
     (or cached
-        (let* ((date-part (funcall date-fmt locale))
-               (time-part (funcall time-fmt locale))
-               (template-str (funcall template-fmt locale))
-               (date-str (and date-part (time-format-pattern date-part)))
-               (time-str (and time-part (time-format-pattern time-part))))
-          (if (not (and date-str time-str template-str))
-              (setf (property-value locale property) *default-timestamp-format*)
-              (let* ((date-pos (search "{1}" template-str))
-                     (time-pos (search "{0}" template-str))
-                     (pattern (if (< date-pos time-pos)
-                                  (concatenate 'string
-                                               (subseq template-str 0 date-pos)
-                                               date-str
-                                               (subseq template-str (+ date-pos 3) time-pos)
-                                               time-str
-                                               (subseq template-str (+ time-pos 3)))
-                                  (concatenate 'string
-                                               (subseq template-str 0 time-pos)
-                                               time-str
-                                               (subseq template-str (+ time-pos 3) date-pos)
-                                               date-str
-                                               (subseq template-str (+ date-pos 3))))))
-                (setf (property-value locale property) (time-format pattern))))))))
+        (unless-inherited ((date-part (funcall date-fmt locale))
+                           (time-part (funcall time-fmt locale))
+                           (template-part (funcall template-fmt locale)))
+          (let ((template-str (funcall template-fmt locale))
+                (date-str (and date-part (time-format-pattern date-part)))
+                (time-str (and time-part (time-format-pattern time-part))))
+            (if (not (and date-str time-str template-str))
+                ;; FIXME: Punting if we have no combined template string
+                ;; is ok. Punting, if the date or the time format does not
+                ;; have a pattern string is not. We should have a way to
+                ;; combine the things anyway.
+                (setf (property-value locale property) *default-timestamp-format*)
+                (let* ((date-pos (search "{1}" template-str))
+                       (time-pos (search "{0}" template-str))
+                       (pattern (if (< date-pos time-pos)
+                                    (concatenate 'string
+                                                 (subseq template-str 0 date-pos)
+                                                 date-str
+                                                 (subseq template-str (+ date-pos 3) time-pos)
+                                                 time-str
+                                                 (subseq template-str (+ time-pos 3)))
+                                    (concatenate 'string
+                                                 (subseq template-str 0 time-pos)
+                                                 time-str
+                                                 (subseq template-str (+ time-pos 3) date-pos)
+                                                 date-str
+                                                 (subseq template-str (+ date-pos 3))))))
+                  (setf (property-value locale property) (time-format pattern)))))))))
 
 (defmethod localized-timestamp-format (type (locale calendar-symbols))
-  (case type
-    ((:short-date) (calendar-date-format-short locale))
-    ((:medium-date) (calendar-date-format-medium locale))
-    ((:long-date) (calendar-date-format-long locale))
-    ((:full-date) (calendar-date-format-full locale))
-    ((:short-time) (calendar-time-format-short locale))
-    ((:medium-time) (calendar-time-format-medium locale))
-    ((:long-time) (calendar-time-format-long locale))
-    ((:full-time) (calendar-time-format-full locale))
-    ((:short-timestamp) (derive-timestamp-format locale 'short-timestamp-format #'calendar-date-format-short #'calendar-time-format-short #'calendar-timestamp-template-short))
-    ((:medium-timestamp) (derive-timestamp-format locale 'medium-timestamp-format #'calendar-date-format-medium #'calendar-time-format-medium #'calendar-timestamp-template-medium))
-    ((:long-timestamp) (derive-timestamp-format locale 'long-timestamp-format #'calendar-date-format-long #'calendar-time-format-long #'calendar-timestamp-template-long))
-    ((:full-timestamp) (derive-timestamp-format locale 'full-timestamp-format #'calendar-date-format-full #'calendar-time-format-full #'calendar-timestamp-template-full))
-    (otherwise (call-next-method))))
+  (let ((result (case type
+                  ((:short-date) (calendar-date-format-short locale))
+                  ((:medium-date) (calendar-date-format-medium locale))
+                  ((:long-date) (calendar-date-format-long locale))
+                  ((:full-date) (calendar-date-format-full locale))
+                  ((:short-time) (calendar-time-format-short locale))
+                  ((:medium-time) (calendar-time-format-medium locale))
+                  ((:long-time) (calendar-time-format-long locale))
+                  ((:full-time) (calendar-time-format-full locale))
+                  ((:short-timestamp) (derive-timestamp-format locale 'short-timestamp-format #'calendar-date-format-short #'calendar-time-format-short #'calendar-timestamp-template-short))
+                  ((:medium-timestamp) (derive-timestamp-format locale 'medium-timestamp-format #'calendar-date-format-medium #'calendar-time-format-medium #'calendar-timestamp-template-medium))
+                  ((:long-timestamp) (derive-timestamp-format locale 'long-timestamp-format #'calendar-date-format-long #'calendar-time-format-long #'calendar-timestamp-template-long))
+                  ((:full-timestamp) (derive-timestamp-format locale 'full-timestamp-format #'calendar-date-format-full #'calendar-time-format-full #'calendar-timestamp-template-full))
+                  (otherwise +inherit+))))
+    (if (eq result +inherit+) (call-next-method) result)))
 
 (add-locale-resource-directory (asdf:system-relative-pathname '#:darts.lib.calendar "./data/"))
