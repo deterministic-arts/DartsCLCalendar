@@ -26,11 +26,9 @@
 (defvar *formatter-cache* (make-weak-hash-table :test 'equal))
 (defvar *formatter-cache-lock* (make-lock "Formatter Cache Lock"))
 
-(defgeneric localized-month-name (month locale))
-(defgeneric localized-month-abbreviation (month locale))
-(defgeneric localized-weekday-name (day locale))
-(defgeneric localized-weekday-abbreviation (day locale))
-(defgeneric localized-meridian (value locale))
+(defgeneric localized-month (month locale &optional format))
+(defgeneric localized-weekday (day locale &optional format))
+(defgeneric localized-meridian (value locale &optional format))
 (defgeneric localized-timestamp-format (type locale))
 (defgeneric localized-beginning-of-week (locale))
 (defgeneric localized-era-designator (era locale))
@@ -59,20 +57,27 @@
 (defvar *default-timestamp-format* nil)
 (defvar *default-timestamp-template* "{1} {0}")
 
-(defmethod localized-month-name (month locale)
-  (svref *default-month-names* (1- month)))
+(defmethod localized-month (month locale &optional format)
+  (svref (ecase format
+           ((:wide) *default-month-names*)
+           ((:abbreviated :narrow :short) *default-month-abbreviations*))
+         (1- month)))
 
-(defmethod localized-month-abbreviation (month locale)
-  (svref *default-month-abbreviations* (1- month)))
+(defmethod localized-weekday (day locale &optional format)
+  (svref (ecase format
+           ((:wide) *default-weekday-names*)
+           ((:abbreviated :narrow :short) *default-weekday-abbreviations*))
+         day))
 
-(defmethod localized-weekday-name (day locale)
-  (svref *default-weekday-names* day))
+(defmethod localized-meridian (value locale &optional format)
+  (svref (ecase format
+           ((:wide :abbreviated :narrow :short) *default-meridian*))
+         value))
 
-(defmethod localized-weekday-abbreviation (day locale)
-  (svref *default-weekday-abbreviations* day))
-
-(defmethod localized-meridian (value locale)
-  (svref *default-meridian* value))
+(defmethod localized-era (value locale &optional format)
+  (svref (ecase format
+           ((:wide :abbreviated :narrow :short) *default-era-designators*))
+         value))
 
 (defmethod localized-beginning-of-week (locale)
   :sunday)
@@ -83,9 +88,6 @@
     ((:short-time :medium-time :long-time :full-time) *default-time-format*)
     ((:short-timestamp :medium-timestamp :long-timestamp :full-timestamp) *default-timestamp-format*)
     (otherwise (call-next-method))))
-
-(defmethod localized-era-designator (era locale)
-  (svref *default-era-designators* era))
 
 
 
@@ -214,47 +216,40 @@
           width (if (eql width 2) (rem (local-year-of-era object) 100)
                     (local-year-of-era object))))
 
-(define-print-operator month (&key (format :number) (width 1))
+(define-print-operator month (&key (format :numeric) (width 1))
   (ecase format
-    ((:name)
-     (print-lambda (write-string (localized-month-name (local-month ts) locale) stream)))
-    ((:abbreviation :abbrev)
-     (print-lambda (write-string (localized-month-abbreviation (local-month ts) locale) stream)))
-    ((:number)
+    ((:wide :short :narrow :abbreviated)
+     (print-lambda (write-string (localized-month (local-month ts) locale format) stream)))
+    ((:numeric)
      (print-lambda (format stream "~v,'0D" width (local-month ts))))))
 
-(define-print-operator day (&key (format :number) (width 1))
+(define-simple-print-operator day (&key (width 1)) (object stream)
+  (format stream "~v,'0D" width (local-day object)))
+
+(define-print-operator weekday (&key (format :numeric) (width 1))
   (ecase format
-    ((:number) (print-lambda (format stream "~v,'0D" width (local-day ts))))
-    ((:english-ordinal) (print-lambda (let ((n (local-day ts)))
-                                        (format stream "~D~A" n
-                                                (case n
-                                                  ((11 12 13) "th")
-                                                  (otherwise (case (mod n 10)
-                                                               ((1) "st")
-                                                               ((2) "nd")
-                                                               ((3) "rd")
-                                                               (otherwise "th"))))))))))
+    ((:abbreviated :narrow :wide :short) (print-lambda (write-string (localized-weekday (local-weekday ts) locale format) stream)))
+    ((:numeric) (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))))
 
-(define-print-operator weekday (&key (format :name) (width 1))
+(define-print-operator era (&key (format :numeric) (width 1))
   (ecase format
-    ((:name) (print-lambda (write-string (localized-weekday-name (local-weekday ts) locale) stream)))
-    ((:abbreviation :abbrev) (print-lambda (write-string (localized-weekday-abbreviation (local-weekday ts) locale) stream)))
-    ((:number) (print-lambda (format stream "~v,'0D" width (1+ (local-weekday ts)))))))
+    ((:abbreviated :narrow :wide :short) (print-lambda (write-string (localized-era (local-era ts) locale format) stream)))
+    ((:numeric) (print-lambda (format stream "~v,'0D" width (local-era ts))))))
 
-(define-print-operator era (&key (format :name) (width 1))
-  (ecase format
-    ((:number) (print-lambda (format stream "~v,'0D" width (local-era ts))))
-    ((:name) (print-lambda (write-string (localized-era-designator (local-era ts) locale)
-                                         stream)))))
+(defun nonzero-or-else (other number)
+  (if (zerop number) other number))
 
-(define-simple-print-operator hour (&key (width 1) exclude-zero) (object stream)
-  (let ((value (local-hour object)))
-    (format stream "~v,'0D" width (if (and (zerop value) exclude-zero) 24 value))))
-
-(define-simple-print-operator hour12 (&key (width 1) exclude-zero) (object stream)
-  (let ((value (mod (local-hour object) 12)))
-    (format stream "~v,'0D" width (if (and (zerop value) exclude-zero) 12 value))))
+(define-print-operator hour (&key (width 1) (range 24) (from-zero t))
+  (ecase range
+    ((12)
+     (if from-zero
+         (print-lambda (format stream "~v,'0D" width (mod (local-hour ts) 12)))
+         (print-lambda (format stream "~v,'0D" width (nonzero-or-else (mod (local-hour ts) 12) 12)))))
+    ((24)
+     (if from-zero
+         (print-lambda (format stream "~v,'0D" width (local-hour ts)))
+         (print-lambda (format stream "~v,'0D" width (nonzero-or-else (local-hour ts)
+                                                                      24)))))))
 
 (define-simple-print-operator minute (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-minute object)))
@@ -281,8 +276,12 @@
         (print-lambda
           (format stream "~v,'0D" width (floor (local-nanos ts) divisor))))))
 
-(define-simple-print-operator meridian () (object locale stream)
-  (write-string (localized-meridian (if (< (local-hour object) 12) 0 1) locale) stream))
+(define-print-operator meridian (&key (format :numeric) (width 1))
+  (ecase format
+    ((:numeric) (print-lambda (format stream "~v,'0D" width (if (< (local-hour ts) 12) 0 1))))
+    ((:narrow :short :wide :abbreviated)
+     (print-lambda (write-string (localized-meridian (if (< (local-hour ts) 12) 0 1) locale format)
+                                 stream)))))
 
 (define-simple-print-operator week (&key (width 1)) (object stream)
   (format stream "~v,'0D" width (local-iso-week-number object)))
@@ -354,6 +353,9 @@ nil)                                    ; macrolet
              (loop
                 while (and (< pos end) (eql (char string pos) char))
                 do (incf pos) (incf count))
+             ;; We try to keep the meaning of the counts as close to what they
+             ;; mean in the ICU library. That is probably a bad idea, given that
+             ;; there are a few very strange conventions there...
              (case char
                ((#\y) (ecase count
                         ((1 2 3 4) (push `(year :width ,count) list))))
@@ -362,31 +364,35 @@ nil)                                    ; macrolet
                ((#\Y) (ecase count
                         ((1 2 3 4) (push `(week-year :width ,count) list))))
                ((#\G) (ecase count
-                        ((1 2 3) (push `(era :format :name) list))))
-               ((#\M) (case count
-                        ((1 2) (push `(month :format :number :width ,count) list))
-                        ((3) (push `(month :format :abbreviation) list))
-                        (otherwise (push `(month :format :name) list))))
+                        ((1 2 3) (push `(era :format :abbreviated) list))
+                        ((4) (push `(era :format :wide) list))
+                        ((5) (push `(era :format :narrow) list))))
+               ((#\M) (ecase count
+                        ((1 2) (push `(month :format :numeric :width ,count) list))
+                        ((3) (push `(month :format :abbreviated) list))
+                        ((4) (push `(month :format :wide) list))
+                        ((5) (push `(month :format :narrow) list))))
                ((#\d) (ecase count
-                        ((1 2) (push `(day :format :number :width ,count) list))))
+                        ((1 2) (push `(day :width ,count) list))))
                ((#\D) (ecase count
                         ((1 2 3) (push `(day-of-year :width ,count) list))))
                ((#\E) (case count
-                        ((1 2) (push `(weekday :format :number :width ,count) list))
-                        ((3) (push `(weekday :format :abbreviation) list))
-                        ((4) (push `(weekday :format :name) list))))
+                        ((1 2 3) (push `(weekday :format :abbreviated :width ,count) list))
+                        ((4) (push `(weekday :format :wide) list))
+                        ((5) (push `(weekday :format :narrow) list))
+                        ((6) (push `(weekday :format :short) list))))
                ((#\w) (ecase count
                         ((1 2) (push `(week :width ,count) list))))
                ((#\H) (ecase count
-                        ((1 2) (push `(hour :width ,count) list))))
+                        ((1 2) (push `(hour :width ,count :range 24 :from-zero t) list))))
                ((#\K) (ecase count
-                        ((1 2) (push `(hour12 :width ,count) list))))
+                        ((1 2) (push `(hour :width ,count :range 12 :from-zero t) list))))
                ((#\k) (ecase count
-                        ((1 2) (push `(hour :width ,count :exclude-zero t) list))))
+                        ((1 2) (push `(hour :width ,count :range 24 :from-zero nil) list))))
                ((#\h) (ecase count
-                        ((1 2) (push `(hour12 :width ,count :exclude-zero t) list))))
+                        ((1 2) (push `(hour :width ,count :range 12 :from-zero nil) list))))
                ((#\a) (ecase count
-                        ((1 2) (push `(meridian) list))))
+                        ((1) (push `(meridian :format :abbreviated) list)))) ; ?
                ((#\m) (ecase count
                         ((1 2) (push `(minute :width ,count) list))))
                ((#\s) (ecase count
@@ -483,57 +489,130 @@ nil)                                    ; macrolet
   (string-trim #.(concatenate 'string '(#\space #\tab #\newline #\return))
                value))
 
-(defun parse-string-vector (input &key (separator #\,))
-  (let ((entries (mapcar #'trim-string (split-sequence separator input))))
-    (make-array (length entries)
-                :element-type 't
-                :initial-contents entries)))
-
+(defun parse-string-vector (input)
+  (labels
+      ((spacep (char)
+         (find char #.(concatenate 'string '(#\space #\tab #\newline #\return))))
+       (collect-entry (position)
+         (let ((buffer (make-array (- (length input) position) :element-type 'character :adjustable t :fill-pointer 0))
+               (space-seen nil)
+               (end (length input)))
+           (loop
+              while (< position end)
+              do (let ((char (char input position)))
+                   (cond
+                     ((eql char #\,) (loop-finish))
+                     ((spacep char)
+                      (setf space-seen (plusp (fill-pointer buffer)))
+                      (incf position))
+                     ((eql char #\\)
+                      (when space-seen (vector-push-extend #\space buffer))
+                      (vector-push-extend (char input (1+ position)) buffer)
+                      (setf space-seen nil)
+                      (incf position 2))
+                     (t
+                      (when space-seen (vector-push-extend #\space buffer))
+                      (vector-push-extend char buffer)
+                      (setf space-seen nil)
+                      (incf position)))))
+           (values (coerce buffer 'simple-string)
+                   (if (eql position end) nil (1+ position))))))
+    (loop
+       with position = 0 and list = nil and count = 0
+       do (multiple-value-bind (elt npos) (collect-entry position)
+            (push elt list)
+            (incf count)
+            (setf position npos)
+            (unless position
+              (return (make-array count
+                                  :element-type t
+                                  :initial-contents (reverse list))))))))
+  
 (defun parse-printer (input)
   (time-format (trim-string input)))
 
 (define-locale-resource calendar-symbols
-    ((month-names
-       :default *default-month-names* :parser parse-string-vector)
-     (month-abbreviations
-       :default *default-month-abbreviations* :parser parse-string-vector)
-     (weekday-names
-       :default *default-weekday-names* :parser parse-string-vector)
-     (weekday-abbreviations
-       :default *default-weekday-abbreviations* :parser parse-string-vector)
-     (meridian-names
-       :default *default-meridian* :parser parse-string-vector)
-     (era-names
-       :default *default-era-designators* :parser parse-string-vector)
+    ((months-narrow
+       :property "months[narrow]" :default *default-month-abbreviations*
+       :parser parse-string-vector)
+     (months-abbreviated
+       :property "month[abbreviated]" :default *default-month-abbreviations*
+       :parser parse-string-vector)
+     (months-wide
+       :property "months[wide]" :default *default-month-names*
+       :parser parse-string-vector)
+     (weekdays-narrow
+       :property "weekdays[narrow]" :default *default-weekday-abbreviations*
+       :parser parse-string-vector)
+     (weekdays-short
+       :property "weekdays[short]" :default *default-weekday-abbreviations*
+       :parser parse-string-vector)
+     (weekdays-abbreviated
+       :property "weekdays[abbreviated]" :default *default-weekday-abbreviations*
+       :parser parse-string-vector)
+     (weekdays-wide
+       :property "weekdays[wide]" :default *default-weekday-names*
+       :parser parse-string-vector)
+     (eras-narrow
+       :property "eras[narrow]" :default *default-era-designators*
+       :parser parse-string-vector)
+     (eras-abbreviated
+       :property "eras[abbreviated]" :default *default-era-designators*
+       :parser parse-string-vector)
+     (eras-wide
+       :property "eras[wide]" :default *default-era-designators*
+       :parser parse-string-vector)
+     (meridians-narrow
+       :property "meridians[narrow]" :default *default-meridian*
+       :parser parse-string-vector)
+     (meridians-abbreviated
+       :property "meridians[abbreviated]" :default *default-meridian*
+       :parser parse-string-vector)
+     (meridians-wide
+       :property "meridians[wide]" :default *default-meridian*
+       :parser parse-string-vector)
+     (date-format-short
+       :property "date-format[short]" :default *default-date-format*
+       :parser parse-printer)
+     (date-format-medium
+       :property "date-format[medium]" :default *default-date-format*
+       :parser parse-printer)
+     (date-format-long
+       :property "date-format[long]" :default *default-date-format*
+       :parser parse-printer)
+     (date-format-full
+       :property "date-format[full]" :default *default-date-format*
+       :parser parse-printer)
+     (time-format-short
+       :property "time-format[short]" :default *default-date-format*
+       :parser parse-printer)
+     (time-format-medium
+       :property "time-format[medium]" :default *default-date-format*
+       :parser parse-printer)
+     (time-format-long
+       :property "time-format[long]" :default *default-date-format*
+       :parser parse-printer)
+     (time-format-full
+       :property "time-format[full]" :default *default-date-format*
+       :parser parse-printer)
+     (timestamp-template-short
+       :property "timestamp-template[short]" :default *default-date-format*
+       :parser trim-string)
+     (timestamp-template-medium
+       :property "timestamp-template[medium]" :default *default-date-format*
+       :parser trim-string)
+     (timestamp-template-long
+       :property "timestamp-template[long]" :default *default-date-format*
+       :parser trim-string)
+     (timestamp-template-full
+       :property "timestamp-template[full]" :default *default-date-format*
+       :parser trim-string)
      (first-day-of-week
        :default :sunday :parser (lambda (str)
                                   (or (find (trim-string str) '(:sunday :monday :tuesday :wednesday :thursday :friday :saturday)
                                             :test #'string-equal)
-                                      +inherit+)))
-     (short-date-format
-       :default *default-date-format* :parser parse-printer)
-     (medium-date-format
-       :default *default-date-format* :parser parse-printer)
-     (long-date-format
-       :default *default-date-format* :parser parse-printer)
-     (full-date-format
-       :default *default-date-format* :parser parse-printer)
-     (short-time-format
-       :default *default-time-format* :parser parse-printer)
-     (medium-time-format
-       :default *default-time-format* :parser parse-printer)
-     (long-time-format
-       :default *default-time-format* :parser parse-printer)
-     (full-time-format
-       :default *default-time-format* :parser parse-printer)
-     (short-timestamp-template
-       :default *default-timestamp-template* :parser trim-string)
-     (medium-timestamp-template
-       :default *default-timestamp-template* :parser trim-string)
-     (long-timestamp-template
-       :default *default-timestamp-template* :parser trim-string)
-     (full-timestamp-template
-       :default *default-timestamp-template* :parser trim-string))
+                                      +inherit+))))
+  (:conc-name calendar-)
   (:cache-function t))
 
 (defun resolve-calendar-symbols (key)
@@ -543,50 +622,36 @@ nil)                                    ; macrolet
     (string (calendar-symbols (locale key)))
     (t key)))
 
-(defmethod localized-month-name (month (locale locale))
-  (svref (calendar-symbols-month-names (calendar-symbols locale)) (1- month)))
+(defmethod localized-month (month (locale calendar-symbols) &optional (format :wide))
+  (let ((vector (ecase format
+                  ((:narrow) (calendar-months-wide locale))
+                  ((:short :abbreviated) (calendar-months-abbreviated locale))
+                  ((:wide) (calendar-months-wide locale)))))
+    (if (eq vector +inherit+) (call-next-method) (aref vector (1- month)))))
 
-(defmethod localized-month-name (month (locale calendar-symbols))
-  (svref (calendar-symbols-month-names locale) (1- month)))
+(defmethod localized-weekday (day (locale calendar-symbols) &optional (format :wide))
+  (let ((vector (ecase format
+                  ((:narrow) (calendar-weekdays-narrow locale))
+                  ((:short) (calendar-weekdays-short locale))
+                  ((:abbreviated) (calendar-weekdays-abbreviated locale))
+                  ((:wide) (calendar-weekdays-wide locale)))))
+    (if (eq vector +inherit+) (call-next-method) (aref vector day))))
 
-(defmethod localized-month-abbreviation (month (locale locale))
-  (svref (calendar-symbols-month-abbreviations (calendar-symbols locale)) (1- month)))
+(defmethod localized-meridian (value (locale calendar-symbols) &optional (format :wide))
+  (let ((vector (ecase format
+                  ((:short :narrow :abbreviated) (calendar-meridians-abbreviated locale))
+                  ((:wide) (calendar-meridians-wide locale)))))
+    (if (eq vector +inherit+) (call-next-method) (aref vector value))))
 
-(defmethod localized-month-abbreviation (month (locale calendar-symbols))
-  (svref (calendar-symbols-month-abbreviations locale) (1- month)))
-
-(defmethod localized-weekday-name (day (locale locale))
-  (svref (calendar-symbols-weekday-names (calendar-symbols locale)) day))
-
-(defmethod localized-weekday-name (day (locale calendar-symbols))
-  (svref (calendar-symbols-weekday-names locale) day))
-
-(defmethod localized-weekday-abbreviation (day (locale locale))
-  (svref (calendar-symbols-weekday-abbreviations (calendar-symbols locale)) day))
-
-(defmethod localized-weekday-abbreviation (day (locale calendar-symbols))
-  (svref (calendar-symbols-weekday-abbreviations locale) day))
-
-(defmethod localized-meridian (value (locale locale))
-  (svref (calendar-symbols-meridian-names (calendar-symbols locale)) value))
-
-(defmethod localized-meridian (value (locale calendar-symbols))
-  (svref (calendar-symbols-meridian-names locale) value))
-
-(defmethod localized-era-designator (era (locale locale))
-  (svref (calendar-symbols-era-names (calendar-symbols locale)) era))
-
-(defmethod localized-era-designator (era (locale calendar-symbols))
-  (svref (calendar-symbols-era-names locale) era))
-
-(defmethod localized-beginning-of-week ((locale locale))
-  (calendar-symbols-first-day-of-week (calendar-symbols locale)))
+(defmethod localized-era (era (locale calendar-symbols) &optional (format :wide))
+  (let ((vector (ecase format
+                  ((:narrow) (calendar-eras-narrow locale))
+                  ((:short :abbreviated) (calendar-eras-abbreviated locale))
+                  ((:wide) (calendar-eras-wide locale)))))
+    (if (eq vector +inherit+) (call-next-method) (aref vector era))))
 
 (defmethod localized-beginning-of-week ((locale calendar-symbols))
-  (calendar-symbols-first-day-of-week locale))
-
-(defmethod localized-timestamp-format (type (locale locale))
-  (localized-timestamp-format type (calendar-symbols locale)))
+  (calendar-first-day-of-week locale))
 
 (defun derive-timestamp-format (locale property date-fmt time-fmt template-fmt)
   (let ((cached (property-value locale property)))
@@ -617,18 +682,18 @@ nil)                                    ; macrolet
 
 (defmethod localized-timestamp-format (type (locale calendar-symbols))
   (case type
-    ((:short-date) (calendar-symbols-short-date-format locale))
-    ((:medium-date) (calendar-symbols-medium-date-format locale))
-    ((:long-date) (calendar-symbols-long-date-format locale))
-    ((:full-date) (calendar-symbols-full-date-format locale))
-    ((:short-time) (calendar-symbols-short-time-format locale))
-    ((:medium-time) (calendar-symbols-medium-time-format locale))
-    ((:long-time) (calendar-symbols-long-time-format locale))
-    ((:full-time) (calendar-symbols-full-time-format locale))
-    ((:short-timestamp) (derive-timestamp-format locale 'short-timestamp-format #'calendar-symbols-short-date-format #'calendar-symbols-short-time-format #'calendar-symbols-short-timestamp-template))
-    ((:medium-timestamp) (derive-timestamp-format locale 'medium-timestamp-format #'calendar-symbols-medium-date-format #'calendar-symbols-medium-time-format #'calendar-symbols-medium-timestamp-template))
-    ((:long-timestamp) (derive-timestamp-format locale 'long-timestamp-format #'calendar-symbols-long-date-format #'calendar-symbols-long-time-format #'calendar-symbols-long-timestamp-template))
-    ((:full-timestamp) (derive-timestamp-format locale 'full-timestamp-format #'calendar-symbols-full-date-format #'calendar-symbols-full-time-format #'calendar-symbols-full-timestamp-template))
+    ((:short-date) (calendar-date-format-short locale))
+    ((:medium-date) (calendar-date-format-medium locale))
+    ((:long-date) (calendar-date-format-long locale))
+    ((:full-date) (calendar-date-format-full locale))
+    ((:short-time) (calendar-time-format-short locale))
+    ((:medium-time) (calendar-time-format-medium locale))
+    ((:long-time) (calendar-time-format-long locale))
+    ((:full-time) (calendar-time-format-full locale))
+    ((:short-timestamp) (derive-timestamp-format locale 'short-timestamp-format #'calendar-date-format-short #'calendar-time-format-short #'calendar-timestamp-template-short))
+    ((:medium-timestamp) (derive-timestamp-format locale 'medium-timestamp-format #'calendar-date-format-medium #'calendar-time-format-medium #'calendar-timestamp-template-medium))
+    ((:long-timestamp) (derive-timestamp-format locale 'long-timestamp-format #'calendar-date-format-long #'calendar-time-format-long #'calendar-timestamp-template-long))
+    ((:full-timestamp) (derive-timestamp-format locale 'full-timestamp-format #'calendar-date-format-full #'calendar-time-format-full #'calendar-timestamp-template-full))
     (otherwise (call-next-method))))
 
 (add-locale-resource-directory (asdf:system-relative-pathname '#:darts.lib.calendar "./data/"))

@@ -57,9 +57,8 @@
      #:local-timestamp-time #:local-timestamp/= #:local-timestamp<
      #:local-timestamp<= #:local-timestamp= #:local-timestamp> #:local-timestamp>=
      #:local-weekday #:local-year #:local-year-of-era #:local-era
-     #:localized-beginning-of-week #:localized-era-designator #:localized-meridian
-     #:localized-month-abbreviation #:localized-month-name #:localized-timestamp-format
-     #:localized-weekday-abbreviation #:localized-weekday-name #:make-duration
+     #:localized-beginning-of-week #:localized-era #:localized-meridian
+     #:localized-month #:localized-timestamp-format #:localized-weekday #:make-duration
      #:make-instant #:make-local-date #:make-local-time #:make-local-timestamp
      #:negate-duration #:now #:parse-timestamp-format-string #:posix-time-to-instant
      #:print-timestamp #:same-zone-p #:scale-duration #:subtract-duration
