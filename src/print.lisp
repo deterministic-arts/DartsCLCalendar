@@ -633,6 +633,26 @@ nil)                                    ; macrolet
     (string (calendar-symbols (locale key)))
     (t key)))
 
+
+(defmethod localized-month (month (locale locale) &optional (format :wide))
+  (localized-month month (calendar-symbols locale) format))
+
+(defmethod localized-weekday (month (locale locale) &optional (format :wide))
+  (localized-weekday month (calendar-symbols locale) format))
+
+(defmethod localized-meridian (month (locale locale) &optional (format :wide))
+  (localized-meridian month (calendar-symbols locale) format))
+
+(defmethod localized-era (month (locale locale) &optional (format :wide))
+  (localized-era month (calendar-symbols locale) format))
+
+(defmethod localized-beginning-of-week ((locale locale))
+  (localized-beginning-of-week (calendar-symbols locale)))
+
+(defmethod localized-timestamp-format (type (locale locale))
+  (localized-timestamp-format type (calendar-symbols locale)))
+
+
 (defmethod localized-month (month (locale calendar-symbols) &optional (format :wide))
   (let ((vector (ecase format
                   ((:narrow) (calendar-months-wide locale))
